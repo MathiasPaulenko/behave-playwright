@@ -1,0 +1,11 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:8123",
+      "localStorage": [
+        { "name": "token", "value": "t0ken" }
+      ]
+    }
+  ]
+}

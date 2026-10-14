@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from behave import when
 
 from behave_playwright._context import require_page
-from behave_playwright.locators import resolve_first
+from behave_playwright.locators import resolve, resolve_first
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -98,7 +98,9 @@ def step_press_key(context: Context, key: str) -> None:
 @when('I press "{key}" on "{target}"')
 @when('I press "{key}" in "{target}"')
 def step_press_key_on(context: Context, key: str, target: str) -> None:
-    resolve_first(require_page(context), target).press(key)
+    page = require_page(context)
+    locator = resolve(page, target, "field").or_(resolve(page, target, "action"))
+    locator.first.press(key)
 
 
 @when('I upload "{path}" to "{field}"')

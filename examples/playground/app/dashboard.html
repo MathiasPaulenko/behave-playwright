@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+<head><title>Dashboard</title></head>
+<body>
+  <script>
+    const heading = document.createElement("h1");
+    heading.textContent = localStorage.getItem("token") ? "Secret area" : "Forbidden";
+    document.body.append(heading);
+  </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head><title>Playground</title></head>
+<body>
+  <h1>Playground</h1>
+
+  <form id="form">
+    <label>Email <input id="email" type="email"></label>
+    <label>Password <input id="password" type="password"></label>
+    <label>Nickname <input id="nick" placeholder="Pick a nick"></label>
+    <button type="submit">Sign in</button>
+  </form>
+
+  <select aria-label="Fruit">
+    <option>Apple</option><option>Banana</option>
+  </select>
+  <label><input type="checkbox" id="terms"> Accept terms</label>
+  <button id="disabled" disabled>Disabled</button>
+
+  <button id="btn">Click me</button>
+  <button id="dbl">Double me</button>
+  <span id="hoverable">Hover me</span>
+  <div id="out"></div>
+
+  <button id="alert" onclick="alert('hello')">Alert</button>
+  <button id="confirm">Confirm</button>
+  <button id="prompt">Prompt</button>
+  <div id="dlg"></div>
+
+  <iframe name="widget"
+          srcdoc="<p>frame content</p><button>Frame button</button>"></iframe>
+
+  <a href="/docs.html" target="_blank">Open docs</a>
+  <a href="/files/report.txt" download>Download report</a>
+
+  <input type="file" id="upload">
+  <div id="fname"></div>
+
+  <div id="src" draggable="true" style="width:60px;height:30px;background:#cde">drag me</div>
+  <div id="zone" style="width:120px;height:60px;border:2px dashed #999">zone</div>
+
+  <button id="break">Break console</button>
+  <button id="login">Log me in</button>
+
+  <ul id="items"></ul>
+  <div id="ghost" hidden>ghost</div>
+  <div style="height:3000px"></div>
+  <footer id="bottom">Bottom of the page</footer>
+
+  <script>
+    const out = document.getElementById("out");
+    document.getElementById("btn").onclick = () => out.textContent = "Clicked!";
+    document.getElementById("dbl").ondblclick = () => out.textContent = "Double clicked!";
+    document.getElementById("hoverable").onmouseover = () => out.textContent = "Hovered!";
+
+    document.getElementById("form").onsubmit = (e) => {
+      e.preventDefault();
+      fetch("api/submit", { method: "POST" }).then(() => {
+        out.textContent = "Form sent for " + document.getElementById("email").value;
+      });
+    };
+
+    document.getElementById("confirm").onclick = () => {
+      document.getElementById("dlg").textContent = confirm("ok?") ? "confirmed" : "cancelled";
+    };
+    document.getElementById("prompt").onclick = () => {
+      document.getElementById("dlg").textContent = prompt("value?");
+    };
+
+    document.getElementById("zone").ondrop = function () { this.textContent = "Dropped!"; };
+    document.getElementById("zone").ondragover = (e) => e.preventDefault();
+
+    document.getElementById("upload").onchange = function () {
+      document.getElementById("fname").textContent = this.files[0].name;
+    };
+
+    document.getElementById("break").onclick = () => console.error("boom error");
+
+    document.getElementById("login").onclick = () => {
+      localStorage.setItem("token", "t0ken");
+      document.cookie = "session=abc123";
+      out.textContent = "Logged in";
+    };
+
+    fetch("api/items")
+      .then((r) => r.json())
+      .then((items) => items.forEach((i) => {
+        const li = document.createElement("li");
+        li.textContent = i;
+        document.getElementById("items").append(li);
+      }))
+      .catch(() => {
+        const p = document.createElement("p");
+        p.textContent = "Could not load items";
+        document.getElementById("items").before(p);
+      });
+  </script>
+</body>
+</html>

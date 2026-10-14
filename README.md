@@ -237,7 +237,8 @@ Keys can also be namespaced to avoid collisions with other `-D` values: `-D beha
 
 ## Examples
 
-[`examples/saucedemo`](examples/saucedemo) is a complete project against the classic [saucedemo.com](https://www.saucedemo.com) test site: login, inventory, cart flow and network mocking — all with bundled steps plus one custom step composed via `execute_steps`. `cd examples/saucedemo && behave` (needs internet).
+- [`examples/saucedemo`](examples/saucedemo) — a complete project against the classic [saucedemo.com](https://www.saucedemo.com) test site: login, inventory, cart flow and network mocking, plus a custom step composed via `execute_steps`. `cd examples/saucedemo && behave` (needs internet).
+- [`examples/playground`](examples/playground) — a self-contained testbed: local app + API covering **every** feature (forms, tabs, iframes, dialogs, downloads, storage state, device emulation, network, console errors, artifacts). `cd examples/playground && behave` — no internet needed.
 
 ## Custom steps and the page object
 
