@@ -164,7 +164,7 @@ behave -D browser=firefox -D headless=false -D base_url=http://localhost:8000
 
 ## Examples
 
-[`examples/demo`](examples/demo) is a self-contained project: a bundled login + todo SPA served by a local test server, exercised end-to-end with only bundled steps (login, todos, network mocking). `cd examples/demo && behave` just works.
+[`examples/saucedemo`](examples/saucedemo) is a complete project against the classic [saucedemo.com](https://www.saucedemo.com) test site: login, inventory, cart flow and network mocking — all with bundled steps plus one custom step composed via `execute_steps`. `cd examples/saucedemo && behave` (needs internet).
 
 ## Custom steps and the page object
 
