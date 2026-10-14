@@ -162,6 +162,10 @@ Via `behave -D key=value`, `behave.ini` `userdata`, or `BEHAVE_PW_*` env vars:
 behave -D browser=firefox -D headless=false -D base_url=http://localhost:8000
 ```
 
+## Examples
+
+[`examples/demo`](examples/demo) is a self-contained project: a bundled login + todo SPA served by a local test server, exercised end-to-end with only bundled steps (login, todos, network mocking). `cd examples/demo && behave` just works.
+
 ## Custom steps and the page object
 
 The bundled steps cover the common cases; write your own on top of `context.page`:

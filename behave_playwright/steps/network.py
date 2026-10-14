@@ -16,7 +16,7 @@ import time
 from re import Pattern
 from typing import TYPE_CHECKING, Any
 
-from behave import then, when
+from behave import step, then
 
 from behave_playwright._context import require_page
 
@@ -24,17 +24,17 @@ if TYPE_CHECKING:
     from behave.runner import Context
 
 
-@when('I intercept "{pattern}" and return:')
+@step('I intercept "{pattern}" and return:')
 def step_intercept_return(context: Context, pattern: str) -> None:
     _fulfill_route(context, pattern, body=context.text or "")
 
 
-@when('I intercept "{pattern}" and respond with status {code:d}')
+@step('I intercept "{pattern}" and respond with status {code:d}')
 def step_intercept_status(context: Context, pattern: str, code: int) -> None:
     _fulfill_route(context, pattern, status=code, body=getattr(context, "text", "") or "")
 
 
-@when('I intercept "{pattern}" and abort')
+@step('I intercept "{pattern}" and abort')
 def step_intercept_abort(context: Context, pattern: str) -> None:
     require_page(context).route(_url_pattern(pattern), lambda route: route.abort())
 
