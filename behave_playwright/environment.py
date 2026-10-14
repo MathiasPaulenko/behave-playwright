@@ -18,6 +18,8 @@ scenario. Exposed on the behave ``Context``:
 - ``context.browser_context`` — Playwright ``BrowserContext``
 - ``context.browser`` — shared Playwright ``Browser``
 - ``context.bp_config`` — resolved :class:`BrowserConfig`
+- ``context.bp_requests`` — requests seen by the scenario's page
+- ``context.bp_screenshot`` / ``context.bp_trace`` — artifacts on failure
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ from typing import Any
 from behave.model import Scenario, Status
 from behave.runner import Context
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import sync_playwright
 
 from behave_playwright.config import BrowserConfig
 
@@ -40,6 +42,7 @@ __all__ = [
     "after_scenario",
     "before_all",
     "before_scenario",
+    "new_browser_context",
 ]
 
 logger = logging.getLogger(__name__)
@@ -65,38 +68,52 @@ def before_all(context: Context) -> None:
 def before_scenario(context: Context, scenario: Scenario) -> None:
     """Create a fresh browser context and page for the scenario."""
     config: BrowserConfig = context.bp_config
-
-    context_args: dict[str, Any] = {}
+    extra_args: dict[str, Any] = {}
     if config.device:
-        try:
-            context_args.update(context._bp_playwright.devices[config.device])
-        except KeyError:
-            raise ValueError(
-                f"Unknown Playwright device {config.device!r}; "
-                "see playwright.dev/python/docs/emulation#devices"
-            ) from None
+        extra_args.update(_device_descriptor(context, config.device))
+    new_browser_context(context, extra_args)
+
+
+def new_browser_context(context: Context, extra_args: dict[str, Any] | None = None) -> None:
+    """(Re)create ``context.browser_context`` and ``context.page``.
+
+    Shared by ``before_scenario`` and by steps that need a fresh context
+    mid-scenario (device emulation, storage state). Options explicitly set in
+    the config override the values carried by ``extra_args`` (e.g. a device
+    descriptor).
+    """
+    config: BrowserConfig = context.bp_config
+    old_context = getattr(context, "browser_context", None)
+    if old_context is not None:
+        old_context.close()
+
+    args: dict[str, Any] = dict(extra_args or {})
     if config.viewport_width and config.viewport_height:
-        context_args["viewport"] = {
+        args["viewport"] = {
             "width": config.viewport_width,
             "height": config.viewport_height,
         }
     if config.locale:
-        context_args["locale"] = config.locale
+        args["locale"] = config.locale
     if config.base_url:
-        context_args["base_url"] = config.base_url
+        args["base_url"] = config.base_url
 
-    browser_context = context.browser.new_context(**context_args)
+    browser_context = context.browser.new_context(**args)
     page = browser_context.new_page()
     if config.timeout:
         page.set_default_timeout(config.timeout)
         page.set_default_navigation_timeout(config.timeout)
 
+    requests: list[Any] = []
+    page.on("request", lambda request: requests.append(request))
+
     context.browser_context = browser_context
     context.page = page
+    context.bp_requests = requests
 
 
 def after_scenario(context: Context, scenario: Scenario) -> None:
-    """Capture a screenshot on failure, then tear down the browser context."""
+    """Capture a screenshot and trace on failure, then tear down the context."""
     config = getattr(context, "bp_config", BrowserConfig())
     page = getattr(context, "page", None)
 
@@ -106,14 +123,20 @@ def after_scenario(context: Context, scenario: Scenario) -> None:
         and page is not None
         and not page.is_closed()
     ):
-        path = _save_screenshot(page, scenario, config.screenshots_dir)
-        if path is not None:
+        path = _artifact_path(scenario, config.screenshots_dir, ".png")
+        try:
+            page.screenshot(path=str(path), full_page=True, timeout=5_000)
+        except PlaywrightError:
+            logger.warning("Could not capture screenshot for failed scenario %r", scenario.name)
+        else:
             context.bp_screenshot = path
             try:
                 context.attach("image/png", path.read_bytes())
             except Exception:
                 logger.debug("Could not attach screenshot to behave report")
             logger.info("Screenshot saved to %s", path)
+
+    _stop_tracing(context, scenario, config)
 
     browser_context = getattr(context, "browser_context", None)
     if browser_context is not None:
@@ -130,15 +153,34 @@ def after_all(context: Context) -> None:
         playwright.stop()
 
 
-def _save_screenshot(page: Page, scenario: Scenario, directory: str) -> Path | None:
+def _device_descriptor(context: Context, name: str) -> dict[str, Any]:
+    try:
+        return dict(context._bp_playwright.devices[name])
+    except KeyError:
+        raise ValueError(
+            f"Unknown Playwright device {name!r}; see playwright.dev/python/docs/emulation#devices"
+        ) from None
+
+
+def _stop_tracing(context: Context, scenario: Scenario, config: BrowserConfig) -> None:
+    tracing_context = getattr(context, "_bp_tracing", None)
+    if tracing_context is None:
+        return
+    try:
+        if scenario.status == Status.failed:
+            path = _artifact_path(scenario, config.traces_dir, ".trace.zip")
+            tracing_context.tracing.stop(path=str(path))
+            context.bp_trace = path
+            logger.info("Trace saved to %s", path)
+        else:
+            tracing_context.tracing.stop()
+    except PlaywrightError:
+        logger.warning("Could not stop tracing for scenario %r", scenario.name)
+
+
+def _artifact_path(scenario: Scenario, directory: str, suffix: str) -> Path:
     out_dir = Path(directory)
     out_dir.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^a-z0-9]+", "-", scenario.name.lower()).strip("-") or "scenario"
     timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
-    path = out_dir / f"{slug}-{timestamp}.png"
-    try:
-        page.screenshot(path=str(path), full_page=True, timeout=5_000)
-    except PlaywrightError:
-        logger.warning("Could not capture screenshot for failed scenario %r", scenario.name)
-        return None
-    return path
+    return out_dir / f"{slug}-{timestamp}{suffix}"

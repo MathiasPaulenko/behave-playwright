@@ -48,6 +48,7 @@ class BrowserConfig:
     timeout: float = 30_000.0
     screenshots_on_failure: bool = True
     screenshots_dir: str = "screenshots"
+    traces_dir: str = "traces"
 
     @classmethod
     def from_context(cls, context: Context) -> BrowserConfig:
@@ -88,6 +89,7 @@ class BrowserConfig:
             timeout=_parse_float("timeout", get("timeout", "30000") or "30000"),
             screenshots_on_failure=_parse_bool("screenshots", get("screenshots", "true") or "true"),
             screenshots_dir=get("screenshots_dir", "screenshots") or "screenshots",
+            traces_dir=get("traces_dir", "traces") or "traces",
         )
 
 

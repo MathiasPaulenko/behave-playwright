@@ -19,3 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (accessible selectors first, `css=`/`text=`/`testid=`/`role=`/`label=` prefixes
   supported).
 - `behave-playwright init` CLI: scaffolds `behave.ini` + `features/`.
+- Playwright-exclusive steps: network interception (`I intercept ... and
+  return/respond/abort`), request assertions (`a request was made to`),
+  device emulation (`I emulate device`), tracing (`I enable tracing` →
+  `.trace.zip` on failure), and storage state (`I use/save the storage state`,
+  `I am logged in as`).

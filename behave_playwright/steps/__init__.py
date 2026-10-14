@@ -8,9 +8,24 @@ Register them from a module inside ``features/steps/``::
 or call :func:`use_steps` from ``environment.py``.
 """
 
-from behave_playwright.steps import assertions, interaction, navigation, waiting
+from behave_playwright.steps import (
+    assertions,
+    interaction,
+    navigation,
+    network,
+    session,
+    waiting,
+)
 
-__all__ = ["assertions", "interaction", "navigation", "use_steps", "waiting"]
+__all__ = [
+    "assertions",
+    "interaction",
+    "navigation",
+    "network",
+    "session",
+    "use_steps",
+    "waiting",
+]
 
 
 def use_steps() -> None:

@@ -21,6 +21,9 @@ class FakePage:
     def is_closed(self) -> bool:
         return self.closed
 
+    def on(self, event: str, handler: Any) -> None:
+        pass
+
     def screenshot(self, path: str, full_page: bool = True, timeout: float = 0) -> None:
         self.screenshots.append(path)
         Path(path).write_bytes(b"fake-png")

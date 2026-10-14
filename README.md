@@ -117,6 +117,28 @@ When I wait for the page to load / I wait for the network to be idle
 When I wait 2 seconds
 ```
 
+**Network** — interception patterns: glob (`**/api/*`, `*` within a segment, `**` across), bare path (`/api/x` → `**/api/x`), or `/regex/`
+
+```gherkin
+When I intercept "/api/users" and return:
+  """[{"name": "Ada"}]"""
+When I intercept "**/api/health" and respond with status 503:
+  """backend is down"""
+When I intercept "**/analytics" and abort
+Then a request was made to "**/api/login"
+Then a "POST" request was made to "**/api/login"
+```
+
+**Session** — device emulation, tracing, storage state (these recreate `browser_context` + `page`)
+
+```gherkin
+When I emulate device "iPhone 12"
+When I enable tracing          # on failure → <traces_dir>/<scenario>.trace.zip
+Given I am logged in as "ada"  # loads auth/ada.json
+When I save the storage state to "auth/ada.json"
+Given I use the storage state "auth/ada.json"
+```
+
 ## Configuration
 
 Via `behave -D key=value`, `behave.ini` `userdata`, or `BEHAVE_PW_*` env vars:
@@ -134,6 +156,7 @@ Via `behave -D key=value`, `behave.ini` `userdata`, or `BEHAVE_PW_*` env vars:
 | `timeout` | `BEHAVE_PW_TIMEOUT` | `30000` | default timeout in ms |
 | `screenshots` | `BEHAVE_PW_SCREENSHOTS` | `true` | screenshot on scenario failure |
 | `screenshots_dir` | `BEHAVE_PW_SCREENSHOTS_DIR` | `screenshots` | |
+| `traces_dir` | `BEHAVE_PW_TRACES_DIR` | `traces` | where failure traces are saved |
 
 ```bash
 behave -D browser=firefox -D headless=false -D base_url=http://localhost:8000

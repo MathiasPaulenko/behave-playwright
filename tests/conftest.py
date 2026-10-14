@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 
-from behave_playwright import BrowserConfig
+from behave_playwright import BrowserConfig, environment
 
 INDEX_HTML = """<!doctype html>
 <html>
@@ -91,3 +91,19 @@ def page(browser: Browser) -> Iterator[Page]:
 @pytest.fixture
 def context(page: Page) -> SimpleNamespace:
     return SimpleNamespace(page=page, bp_config=BrowserConfig())
+
+
+@pytest.fixture
+def env_context(browser: Browser, playwright_instance: Playwright) -> Iterator[SimpleNamespace]:
+    """Fake behave Context wired the way the real hooks wire it."""
+    ctx = SimpleNamespace(
+        browser=browser,
+        bp_config=BrowserConfig(),
+        _bp_playwright=playwright_instance,
+        attach=lambda *args: None,
+        text=None,
+        table=None,
+    )
+    environment.new_browser_context(ctx)
+    yield ctx
+    ctx.browser_context.close()
