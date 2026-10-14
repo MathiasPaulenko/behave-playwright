@@ -5,7 +5,9 @@ Intercept patterns follow Playwright URL matching:
 - glob (``**/api/users``, ``*status=200*``) — ``*`` stays within a path
   segment, ``**`` crosses segments
 - a bare absolute path (``/api/users``) is expanded to ``**/api/users``
-- ``/regex/`` — a slash-wrapped string is treated as a regular expression
+- ``/regex/`` — a slash-wrapped string containing regex metachars is
+  treated as a regular expression (``/api/`` without metachars is a
+  literal path, not a regex)
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ if TYPE_CHECKING:
 
 @step('I intercept "{pattern}" and return:')
 def step_intercept_return(context: Context, pattern: str) -> None:
-    _fulfill_route(context, pattern, body=context.text or "")
+    _fulfill_route(context, pattern, body=getattr(context, "text", "") or "")
 
 
 @step('I intercept "{pattern}" and respond with status {code:d}')
@@ -58,11 +60,26 @@ def _fulfill_route(context: Context, pattern: str, status: int = 200, body: str 
 
 
 def _url_pattern(raw: str) -> str | Pattern[str]:
-    if raw.startswith("/") and raw.endswith("/") and len(raw) > 2:
-        return re.compile(raw[1:-1])
+    raw = raw.strip()
+    body = _slash_regex_body(raw)
+    if body is not None:
+        return re.compile(body)
     if raw.startswith("/"):
         return f"**{raw}"
     return raw
+
+
+_REGEX_META_RE = re.compile(r"[\\^$*+?{}\[\]|().]")
+
+
+def _slash_regex_body(raw: str) -> str | None:
+    """Return the inner regex of a ``/re/`` pattern — only when the body
+    actually uses regex metachars, so ``/api/`` stays a literal path."""
+    if raw.startswith("/") and raw.endswith("/") and len(raw) > 2:
+        inner = raw[1:-1]
+        if _REGEX_META_RE.search(inner):
+            return inner
+    return None
 
 
 def _is_json(body: str) -> bool:
@@ -74,7 +91,7 @@ def _is_json(body: str) -> bool:
 
 
 def _wait_for_request(context: Context, pattern: str, method: str | None = None) -> Any:
-    page = require_page(context)
+    require_page(context)
     timeout = getattr(getattr(context, "bp_config", None), "timeout", 30_000) / 1000
     deadline = time.monotonic() + timeout
     requests = getattr(context, "bp_requests", [])
@@ -89,12 +106,13 @@ def _wait_for_request(context: Context, pattern: str, method: str | None = None)
                 f"no {method or 'ANY'} request matched {pattern!r}; "
                 f"seen: {[r.url for r in requests] or 'none'}"
             )
-        page.wait_for_timeout(50)
+        time.sleep(0.05)
 
 
 def _matches(url: str, pattern: str) -> bool:
-    if pattern.startswith("/") and pattern.endswith("/") and len(pattern) > 2:
-        return re.search(pattern[1:-1], url) is not None
+    body = _slash_regex_body(pattern)
+    if body is not None:
+        return re.search(body, url) is not None
     if "*" in pattern:
         regex = re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
         return re.search(regex, url) is not None

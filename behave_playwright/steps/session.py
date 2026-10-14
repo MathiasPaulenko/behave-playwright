@@ -8,6 +8,7 @@ listeners or in-flight tracing on the old context is discarded.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -41,6 +42,8 @@ def step_use_storage_state(context: Context, path: str) -> None:
 
 @step('I am logged in as "{user}"')
 def step_logged_in_as(context: Context, user: str) -> None:
+    if not re.fullmatch(r"[\w.-]+", user) or user in (".", ".."):
+        raise ValueError(f"invalid user name {user!r} — auth lookup stays inside {AUTH_DIR}/")
     storage_path = Path(AUTH_DIR) / f"{user}.json"
     if not storage_path.is_file():
         raise FileNotFoundError(

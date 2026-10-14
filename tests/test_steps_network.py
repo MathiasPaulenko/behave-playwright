@@ -56,6 +56,22 @@ def test_request_not_made_fails(env_context: SimpleNamespace) -> None:
         network.step_request_made(env_context, "**/never-called")
 
 
+def test_slash_wrapped_literal_path_is_not_regex() -> None:
+    # "/api/" is a literal path, not the regex "api"
+    assert network._matches("http://x/api/", "/api/") is True
+    assert network._matches("http://x/apis/", "/api/") is False
+    assert network._matches("http://x/api/v1", "/api/v\\d+/") is True
+
+
+def test_url_pattern_literal_path() -> None:
+    from behave_playwright.steps.network import _url_pattern
+
+    assert _url_pattern("/api/") == "**/api/"
+    assert _url_pattern("/api/x") == "**/api/x"
+    assert _url_pattern("**/a*") == "**/a*"
+    assert _url_pattern("/re\\d+/").pattern == r"re\d+"
+
+
 def test_wrong_method_fails(env_context: SimpleNamespace, base_url: str) -> None:
     env_context.page.goto(base_url)
     env_context.bp_config = BrowserConfig(timeout=300)

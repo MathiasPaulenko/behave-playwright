@@ -28,3 +28,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manual screenshots, cookies + console-error + download assertions, tabs,
   iframes, dialogs, and downloads (`downloads/`).
 - Optional video recording (`record_video`) — `.webm` kept on failure.
+- `wire_page(context, page)` — public helper to wire custom pages with
+  timeouts and request/console captures.
+
+### Fixed
+
+- `I press "<key>" on "<target>"` now resolves form fields too (not only
+  clickable roles).
+- `after_scenario` no longer crashes when a scenario fails inside an
+  iframe — artifacts capture the real page.
+- Switching tabs no longer duplicates request/console captures or loses
+  the configured timeout on newly opened pages.
+- Dialogs, downloads and tab-closing work from inside an iframe (they act
+  on the real page).
+- `I switch to the "x" iframe` from inside an iframe keeps the true main
+  page for `I switch back to the main frame`.
+- `I am logged in as "<user>"` rejects path traversal in the user name.
+- `role=BUTTON` (uppercase) resolves correctly.
+- `data:`/`about:`/`blob:` URLs are treated as absolute.
+- `/api/` style patterns only become regexes when they contain metachars.
+- `I fill the form:` reports a clear error on 1-column rows.
+- Stale trace/artifact state and orphaned video files from mid-scenario
+  context recreation are cleaned up.

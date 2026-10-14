@@ -6,8 +6,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from behave.model import Status
 
-from behave_playwright import BrowserConfig
+from behave_playwright import BrowserConfig, environment
 from behave_playwright.steps import assertions, browser
 
 
@@ -83,3 +84,66 @@ def test_click_and_download(env_context: SimpleNamespace, base_url: str, tmp_pat
 def test_file_not_downloaded_fails(env_context: SimpleNamespace) -> None:
     with pytest.raises(AssertionError, match="no downloaded file"):
         assertions.step_file_downloaded(env_context, "missing.zip")
+
+
+def test_tab_switch_does_not_duplicate_requests(
+    env_context: SimpleNamespace, base_url: str
+) -> None:
+    env_context.bp_config = BrowserConfig(base_url=base_url)
+    browser.step_open_new_tab(env_context, "/")
+    browser.step_switch_tab(env_context, 1)
+    browser.step_switch_tab(env_context, 2)  # back to an already-wired page
+    env_context.page.goto(base_url + "/next")
+    doc_requests = [r for r in env_context.bp_requests if r.url.endswith("/next")]
+    assert len(doc_requests) == 1
+
+
+def test_nested_iframe_switch_returns_to_main_page(
+    env_context: SimpleNamespace,
+) -> None:
+    env_context.page.set_content(
+        '<iframe name="outer" srcdoc="<p>outer</p>"></iframe>'
+        '<iframe name="inner2" srcdoc="<p>inner</p>"></iframe>'
+    )
+    env_context.page.wait_for_selector("iframe")
+    original_page = env_context.page
+    browser.step_switch_to_iframe(env_context, "outer")
+    browser.step_switch_to_iframe(env_context, "inner2")  # second switch
+    browser.step_switch_to_main_frame(env_context)
+    assert env_context.page is original_page
+
+
+def test_url_and_title_assertions_inside_iframe(
+    env_context: SimpleNamespace, base_url: str
+) -> None:
+    env_context.bp_config = BrowserConfig(base_url=base_url)
+    env_context.page.goto(base_url)
+    env_context.page.set_content(
+        '<html><head><title>Framed</title></head>'
+        '<body><iframe name="fr" srcdoc="<p>x</p>"></iframe></body></html>'
+    )
+    env_context.page.wait_for_selector("iframe")
+    browser.step_switch_to_iframe(env_context, "fr")
+    assertions.step_url_contains(env_context, "127.0.0.1")
+    assertions.step_title_contains(env_context, "Framed")
+
+
+def test_dialog_steps_work_while_inside_iframe(env_context: SimpleNamespace) -> None:
+    env_context.page.set_content('<iframe name="fr" srcdoc="<p>x</p>"></iframe>')
+    env_context.page.wait_for_selector("iframe")
+    browser.step_switch_to_iframe(env_context, "fr")
+    browser.step_accept_dialog(env_context)  # must attach to the real Page
+    env_context.page.evaluate("alert('hi')")
+
+
+def test_failure_inside_iframe_still_captures_screenshot(
+    env_context: SimpleNamespace, tmp_path: Path
+) -> None:
+    env_context.bp_config = BrowserConfig(screenshots_dir=str(tmp_path))
+    env_context.page.set_content('<iframe name="fr" srcdoc="<p>x</p>"></iframe>')
+    env_context.page.wait_for_selector("iframe")
+    browser.step_switch_to_iframe(env_context, "fr")
+    # context.page is now a Frame — after_scenario must not crash on it
+    env_context.attach = lambda *args: None
+    environment.after_scenario(env_context, SimpleNamespace(name="f", status=Status.failed))
+    assert list(tmp_path.glob("*.png"))

@@ -79,6 +79,11 @@ def test_explicit_role_with_and_without_name() -> None:
     assert trails(FakePage(), "role=navigation") == ["role:navigation"]
 
 
+def test_explicit_role_uppercase() -> None:
+    # role=BUTTON must lowercased — playwright only knows lowercase roles
+    assert trails(FakePage(), "role=BUTTON:Save") == ["role:button"]
+
+
 def test_action_cascade() -> None:
     trail = trails(FakePage(), "Sign in")
     assert "role:button" in trail

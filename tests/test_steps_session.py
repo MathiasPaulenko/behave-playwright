@@ -59,6 +59,16 @@ def test_logged_in_as_missing_file(
         session.step_logged_in_as(env_context, "ghost")
 
 
+@pytest.mark.parametrize("user", ["../evil", "a/b", "..", "a\\b", ""])
+def test_logged_in_as_rejects_path_traversal(
+    env_context: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, user: str
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "auth").mkdir()
+    with pytest.raises(ValueError, match="invalid user name"):
+        session.step_logged_in_as(env_context, user)
+
+
 def test_tracing_saved_on_failure(env_context: SimpleNamespace, tmp_path: Path) -> None:
     env_context.bp_config = BrowserConfig(traces_dir=str(tmp_path), screenshots_dir=str(tmp_path))
     session.step_enable_tracing(env_context)

@@ -16,6 +16,8 @@ venv/
 reports/
 screenshots/
 videos/
+traces/
+downloads/
 *.trace.zip
 test-results/
 .allure/

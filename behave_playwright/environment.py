@@ -14,16 +14,19 @@ or delegate explicitly if you also need custom hooks::
 Lifecycle: one browser per test run, one fresh browser context and page per
 scenario. Exposed on the behave ``Context``:
 
-- ``context.page`` — Playwright ``Page`` for the current scenario
+- ``context.page`` — Playwright ``Page`` (or ``Frame`` inside an iframe)
 - ``context.browser_context`` — Playwright ``BrowserContext``
 - ``context.browser`` — shared Playwright ``Browser``
 - ``context.bp_config`` — resolved :class:`BrowserConfig`
-- ``context.bp_requests`` — requests seen by the scenario's page
-- ``context.bp_screenshot`` / ``context.bp_trace`` — artifacts on failure
+- ``context.bp_requests`` — requests seen by the scenario's pages
+- ``context.bp_console_errors`` — ``console.error`` + uncaught page errors
+- ``context.bp_downloads`` — files saved by download steps
+- ``context.bp_screenshot`` / ``bp_trace`` / ``bp_video`` — artifacts on failure
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from datetime import UTC, datetime
@@ -33,7 +36,7 @@ from typing import Any
 from behave.model import Scenario, Status
 from behave.runner import Context
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Page, sync_playwright
 
 from behave_playwright.config import BrowserConfig
 
@@ -43,6 +46,7 @@ __all__ = [
     "before_all",
     "before_scenario",
     "new_browser_context",
+    "wire_page",
 ]
 
 logger = logging.getLogger(__name__)
@@ -67,7 +71,12 @@ def before_all(context: Context) -> None:
 
 def before_scenario(context: Context, scenario: Scenario) -> None:
     """Create a fresh browser context and page for the scenario."""
-    config: BrowserConfig = context.bp_config
+    config = getattr(context, "bp_config", None)
+    if config is None:
+        raise RuntimeError(
+            "behave-playwright is not wired — call before_all(context) first "
+            "(or `from behave_playwright.environment import *`)"
+        )
     extra_args: dict[str, Any] = {}
     if config.device:
         extra_args.update(_device_descriptor(context, config.device))
@@ -83,9 +92,25 @@ def new_browser_context(context: Context, extra_args: dict[str, Any] | None = No
     descriptor).
     """
     config: BrowserConfig = context.bp_config
+    browser = getattr(context, "browser", None)
+    if browser is None:
+        raise RuntimeError(
+            "context.browser is not set — wire the hooks first: "
+            "`from behave_playwright.environment import *` in features/environment.py"
+        )
+
     old_context = getattr(context, "browser_context", None)
+    old_page = getattr(context, "page", None)
     if old_context is not None:
         old_context.close()
+        # video of the replaced context would linger as a stray uuid.webm
+        if config.record_video and old_page is not None and hasattr(old_page, "video"):
+            with contextlib.suppress(PlaywrightError, AttributeError):
+                Path(old_page.video.path()).unlink(missing_ok=True)
+
+    for artifact in ("bp_screenshot", "bp_trace", "bp_video"):
+        if hasattr(context, artifact):
+            delattr(context, artifact)
 
     args: dict[str, Any] = dict(extra_args or {})
     if config.viewport_width and config.viewport_height:
@@ -102,33 +127,59 @@ def new_browser_context(context: Context, extra_args: dict[str, Any] | None = No
         Path(config.video_dir).mkdir(parents=True, exist_ok=True)
         args["record_video_dir"] = config.video_dir
 
-    browser_context = context.browser.new_context(**args)
+    browser_context = browser.new_context(**args)
     page = browser_context.new_page()
+
+    context.bp_requests = []
+    context.bp_console_errors = []
+    context.bp_downloads = []
+    context._bp_wired_pages = set()
+    context._bp_tracing = None
+    context.browser_context = browser_context
+    wire_page(context, page)
+
+
+def wire_page(context: Context, page: Page) -> None:
+    """Make ``page`` the scenario page: timeouts, captures and frame reset.
+
+    Idempotent per page — listeners are attached only the first time a page
+    is wired, so switching back and forth between tabs never duplicates
+    ``context.bp_requests`` or ``context.bp_console_errors`` entries.
+    """
+    config: BrowserConfig = getattr(context, "bp_config", BrowserConfig())
     if config.timeout:
         page.set_default_timeout(config.timeout)
         page.set_default_navigation_timeout(config.timeout)
 
-    requests: list[Any] = []
-    page.on("request", lambda request: requests.append(request))
+    if getattr(context, "bp_requests", None) is None:
+        context.bp_requests = []
+    if getattr(context, "bp_console_errors", None) is None:
+        context.bp_console_errors = []
 
-    console_errors: list[str] = []
-    page.on(
-        "console",
-        lambda message: console_errors.append(message.text) if message.type == "error" else None,
-    )
-    page.on("pageerror", lambda error: console_errors.append(str(error)))
+    wired: set[Any] = getattr(context, "_bp_wired_pages", None) or set()
+    context._bp_wired_pages = wired
 
-    context.browser_context = browser_context
+    if page not in wired:
+        wired.add(page)
+        page.on("request", lambda request: context.bp_requests.append(request))
+        page.on(
+            "console",
+            lambda message: (
+                context.bp_console_errors.append(message.text) if message.type == "error" else None
+            ),
+        )
+        page.on("pageerror", lambda error: context.bp_console_errors.append(str(error)))
+
     context.page = page
-    context.bp_requests = requests
-    context.bp_console_errors = console_errors
-    context.bp_downloads = []
+    context._bp_main_page = None
 
 
 def after_scenario(context: Context, scenario: Scenario) -> None:
     """Capture a screenshot and trace on failure, then tear down the context."""
     config = getattr(context, "bp_config", BrowserConfig())
-    page = getattr(context, "page", None)
+    # context.page may be a Frame while inside an iframe — artifacts belong
+    # to the real Page, which also holds .video and .is_closed.
+    page = getattr(context, "_bp_main_page", None) or getattr(context, "page", None)
 
     if (
         config.screenshots_on_failure
@@ -192,8 +243,14 @@ def _handle_video(video: Any, context: Context, scenario: Scenario, config: Brow
 
 
 def _device_descriptor(context: Context, name: str) -> dict[str, Any]:
+    playwright = getattr(context, "_bp_playwright", None)
+    if playwright is None:
+        raise RuntimeError(
+            "Playwright is not running — wire the hooks first: "
+            "`from behave_playwright.environment import *` in features/environment.py"
+        )
     try:
-        return dict(context._bp_playwright.devices[name])
+        return dict(playwright.devices[name])
     except KeyError:
         raise ValueError(
             f"Unknown Playwright device {name!r}; see playwright.dev/python/docs/emulation#devices"

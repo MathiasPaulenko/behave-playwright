@@ -72,17 +72,21 @@ The lifecycle hooks are plain functions — delegate when you need your own setu
 # features/environment.py
 from behave_playwright import environment as bp
 
+
 def before_all(context):
     my_app.start()
     context.config.userdata.setdefault("base_url", "http://localhost:8000")
     bp.before_all(context)
 
+
 def before_scenario(context, scenario):
     my_app.reset_db()
     bp.before_scenario(context, scenario)
 
+
 def after_scenario(context, scenario):
     bp.after_scenario(context, scenario)
+
 
 def after_all(context):
     bp.after_all(context)
@@ -199,7 +203,8 @@ Given I use the storage state "auth/ada.json"
 ```gherkin
 When I open a new tab with "/docs"
 When I click "Help" in a new tab       # popup capture + switch
-When I switch to tab 2 / I close the current tab
+When I switch to tab 2                    # 1-based
+When I close the current tab
 When I switch to the "payment" iframe  # steps now act on the frame…
 When I switch back to the main frame   # …until you switch back
 When I accept the next dialog          # must precede the action that opens it
@@ -250,17 +255,19 @@ def step_cart_badge(context, count):
     expect(context.page.locator(".cart-badge")).to_have_text(str(count))
 ```
 
+If a step creates a page itself (custom popup handling, extra tabs), call `wire_page(context, page)` from `behave_playwright.environment` so it inherits timeouts and request/console captures.
+
 Or compose bundled steps with `execute_steps`:
 
 ```python
 @given("I am logged in")
 def step_logged_in(context):
-    context.execute_steps('''
+    context.execute_steps("""
         Given I navigate to "/"
         When I fill "Email" with "a@b.c"
         And I fill "Password" with "secret"
         And I click "Sign in"
-        ''')
+        """)
 ```
 
 ## Philosophy

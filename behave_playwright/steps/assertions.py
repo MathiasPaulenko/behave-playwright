@@ -10,6 +10,7 @@ from playwright.sync_api import expect
 
 from behave_playwright._context import require_page, resolve_url
 from behave_playwright.locators import resolve, resolve_first
+from behave_playwright.steps.browser import _main_page
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -62,25 +63,25 @@ def step_element_not_checked(context: Context, target: str) -> None:
 @then('the url should be "{url}"')
 @then('the page url should be "{url}"')
 def step_url_is(context: Context, url: str) -> None:
-    expect(require_page(context)).to_have_url(resolve_url(context, url))
+    expect(_main_page(context)).to_have_url(resolve_url(context, url))
 
 
 @then('the url should contain "{fragment}"')
 @then('the page url should contain "{fragment}"')
 def step_url_contains(context: Context, fragment: str) -> None:
-    expect(require_page(context)).to_have_url(re.compile(re.escape(fragment)))
+    expect(_main_page(context)).to_have_url(re.compile(re.escape(fragment)))
 
 
 @then('the title should be "{title}"')
 @then('the page title should be "{title}"')
 def step_title_is(context: Context, title: str) -> None:
-    expect(require_page(context)).to_have_title(re.compile(f"^{re.escape(title)}$"))
+    expect(_main_page(context)).to_have_title(re.compile(f"^{re.escape(title)}$"))
 
 
 @then('the title should contain "{text}"')
 @then('the page title should contain "{text}"')
 def step_title_contains(context: Context, text: str) -> None:
-    expect(require_page(context)).to_have_title(re.compile(re.escape(text)))
+    expect(_main_page(context)).to_have_title(re.compile(re.escape(text)))
 
 
 @then('I should see {count:d} "{target}" elements')

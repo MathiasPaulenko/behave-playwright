@@ -37,6 +37,19 @@ def test_fill_form_without_table_fails(context: SimpleNamespace) -> None:
         interaction.step_fill_form(context)
 
 
+def test_fill_form_single_column_row_fails(context: SimpleNamespace, page: Page) -> None:
+    context.table = Table(["field"], [["Email"]], 0)
+    with pytest.raises(RuntimeError, match="2 columns"):
+        interaction.step_fill_form(context)
+
+
+def test_press_key_on_placeholder_target(context: SimpleNamespace, page: Page) -> None:
+    # "press on" must resolve fields too, not just clickable roles
+    page.set_content('<input placeholder="Type here">')
+    interaction.step_press_key_on(context, "a", "Type here")
+    assert page.locator("input").input_value() == "a"
+
+
 def test_scroll_to(context: SimpleNamespace, page: Page) -> None:
     page.set_content('<div style="height:5000px"></div><p id="bottom">down here</p>')
     interaction.step_scroll_to(context, "css=#bottom")
@@ -114,6 +127,16 @@ def test_video_saved_on_failure(env_context: SimpleNamespace, tmp_path: Path) ->
     videos = [p for p in tmp_path.glob("*.webm")]
     assert len(videos) == 1
     assert env_context.bp_video == videos[0]
+
+
+def test_resolve_url_special_schemes() -> None:
+    from behave_playwright._context import resolve_url
+
+    ctx = SimpleNamespace(bp_config=BrowserConfig(base_url="http://x"))
+    assert resolve_url(ctx, "about:blank") == "about:blank"
+    assert resolve_url(ctx, "data:text/html,<p>hi</p>").startswith("data:")
+    assert resolve_url(ctx, "https://a.com/x") == "https://a.com/x"
+    assert resolve_url(ctx, "/path") == "http://x/path"
 
 
 def test_video_deleted_on_pass(env_context: SimpleNamespace, tmp_path: Path) -> None:

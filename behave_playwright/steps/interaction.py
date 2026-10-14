@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import re
-from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from behave import when
 
 from behave_playwright._context import require_page
+from behave_playwright.environment import _artifact_path
 from behave_playwright.locators import resolve, resolve_first
 
 if TYPE_CHECKING:
@@ -69,6 +69,8 @@ def step_fill_form(context: Context) -> None:
     headings = getattr(table, "headings", None) or []
     page = require_page(context)
     for row in table:
+        if len(row.cells) < 2:
+            raise RuntimeError("I fill the form: each row needs at least 2 columns (field, value)")
         field = row["field"] if "field" in headings else row.cells[0]
         value = row["value"] if "value" in headings else row.cells[1]
         resolve_first(page, field, "field").fill(value)
@@ -123,24 +125,20 @@ def step_drag(context: Context, source: str, target: str) -> None:
 
 @when("I take a screenshot")
 def step_take_screenshot(context: Context) -> None:
-    path = _screenshot_path(context, "screenshot")
+    path = _manual_screenshot_path(context, "screenshot")
     require_page(context).screenshot(path=str(path), full_page=True)
     context.attach("image/png", path.read_bytes())
 
 
 @when('I take a screenshot of "{target}"')
 def step_take_element_screenshot(context: Context, target: str) -> None:
-    path = _screenshot_path(context, "element")
+    path = _manual_screenshot_path(context, "element")
     resolve_first(require_page(context), target, "any").screenshot(path=str(path))
     context.attach("image/png", path.read_bytes())
 
 
-def _screenshot_path(context: Context, prefix: str) -> Path:
+def _manual_screenshot_path(context: Context, fallback_name: str) -> Path:
     config: Any = getattr(context, "bp_config", None)
-    screenshots_dir = Path(getattr(config, "screenshots_dir", "screenshots"))
-    screenshots_dir.mkdir(parents=True, exist_ok=True)
-    scenario = getattr(context, "scenario", None)
-    name = getattr(scenario, "name", None) or prefix
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or prefix
-    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
-    return screenshots_dir / f"{slug}-{timestamp}.png"
+    screenshots_dir = getattr(config, "screenshots_dir", "screenshots")
+    scenario = getattr(context, "scenario", None) or SimpleNamespace(name=fallback_name)
+    return _artifact_path(scenario, screenshots_dir, ".png")

@@ -10,7 +10,7 @@ from playwright.sync_api import Page
 if TYPE_CHECKING:
     from behave.runner import Context
 
-_ABSOLUTE_URL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*://")
+_ABSOLUTE_URL_RE = re.compile(r"^(?:[a-zA-Z][a-zA-Z0-9+.-]*://|data:|about:|blob:)", re.IGNORECASE)
 
 
 def require_page(context: Context) -> Page:

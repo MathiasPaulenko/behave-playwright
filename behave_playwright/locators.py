@@ -98,7 +98,7 @@ def _explicit(page: Page, target: str) -> Locator | None:
     role_match = _ROLE_RE.match(target)
     if role_match:
         role, name = role_match.group(1), role_match.group(2)
-        role_lit = cast(Any, role)
+        role_lit = cast(Any, role.lower())
         return page.get_by_role(role_lit, name=name) if name else page.get_by_role(role_lit)
     return None
 
