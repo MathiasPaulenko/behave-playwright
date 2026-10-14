@@ -55,7 +55,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "init":
-        return _cmd_init(Path(args.directory), force=args.force)
+        return _cmd_init(Path(args.directory).expanduser(), force=args.force)
     parser.print_help()
     return 0
 

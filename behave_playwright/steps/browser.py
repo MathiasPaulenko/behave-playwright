@@ -93,9 +93,10 @@ def step_dismiss_dialog(context: Context) -> None:
 
 @step('I click "{target}" and download the file')
 def step_click_and_download(context: Context, target: str) -> None:
-    page = main_page(context)
-    with page.expect_download() as download_info:
-        resolve_first(page, target).click()
+    # expect_download lives on the real Page, but the clicked element may
+    # live inside the current iframe — resolve it on context.page.
+    with main_page(context).expect_download() as download_info:
+        resolve_first(require_page(context), target).click()
     download = download_info.value
     downloads_dir = Path(getattr(getattr(context, "bp_config", None), "downloads_dir", "downloads"))
     downloads_dir.mkdir(parents=True, exist_ok=True)

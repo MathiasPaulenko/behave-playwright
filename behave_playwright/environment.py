@@ -100,7 +100,7 @@ def new_browser_context(context: Context, extra_args: dict[str, Any] | None = No
         )
 
     old_context = getattr(context, "browser_context", None)
-    old_page = getattr(context, "page", None)
+    old_page = getattr(context, "_bp_main_page", None) or getattr(context, "page", None)
     if old_context is not None:
         old_context.close()
         # video of the replaced context would linger as a stray uuid.webm
@@ -128,6 +128,9 @@ def new_browser_context(context: Context, extra_args: dict[str, Any] | None = No
         args["record_video_dir"] = config.video_dir
 
     browser_context = browser.new_context(**args)
+    if config.timeout:
+        browser_context.set_default_timeout(config.timeout)
+        browser_context.set_default_navigation_timeout(config.timeout)
     page = browser_context.new_page()
 
     context.bp_requests = []

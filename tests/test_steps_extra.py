@@ -159,3 +159,20 @@ def test_video_deleted_on_pass(env_context: SimpleNamespace, tmp_path: Path) -> 
     environment.after_scenario(env_context, SimpleNamespace(name="ok", status=Status.passed))
     assert list(tmp_path.glob("*.webm")) == []
     assert not hasattr(env_context, "bp_video")
+
+
+def test_upload_missing_file_fails(context: SimpleNamespace, page: Page) -> None:
+    page.set_content('<input type="file">')
+    with pytest.raises(FileNotFoundError, match="file not found"):
+        interaction.step_upload(context, "input", "does-not-exist.xyz")
+
+
+def test_screenshot_without_attach_still_saves(
+    context: SimpleNamespace, page: Page, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # context has no .attach (non-behave context) — file must still be saved
+    monkeypatch.delattr(context, "attach", raising=False)
+    context.bp_config = BrowserConfig(screenshots_dir=str(tmp_path))
+    context.scenario = SimpleNamespace(name="shot")
+    interaction.step_take_screenshot(context)
+    assert list(tmp_path.glob("*.png"))

@@ -163,5 +163,6 @@ def test_steps_act_on_main_page_inside_iframe(
     network.step_intercept_abort(env_context, "**/nothing")
     env_context.attach = lambda *a: None
     interaction.step_take_screenshot(env_context)
+    interaction.step_press_key(env_context, "Tab")
     navigation.step_go_back(env_context)
     navigation.step_reload(env_context)

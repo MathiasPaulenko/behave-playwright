@@ -89,3 +89,11 @@ def test_tracing_not_saved_on_pass(env_context: SimpleNamespace, tmp_path: Path)
 
     assert list(tmp_path.glob("*.trace.zip")) == []
     assert not hasattr(env_context, "bp_trace")
+
+
+@pytest.mark.parametrize("path", ["", "   "])
+def test_storage_state_empty_path_fails(env_context: SimpleNamespace, path: str) -> None:
+    with pytest.raises(ValueError, match="empty"):
+        session.step_save_storage_state(env_context, path)
+    with pytest.raises(ValueError, match="empty"):
+        session.step_use_storage_state(env_context, path)

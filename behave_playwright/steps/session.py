@@ -32,6 +32,8 @@ def step_emulate_device(context: Context, name: str) -> None:
 
 @step('I use the storage state "{path}"')
 def step_use_storage_state(context: Context, path: str) -> None:
+    if not path.strip():
+        raise ValueError("storage state path must not be empty")
     storage_path = Path(path)
     if not storage_path.is_file():
         raise FileNotFoundError(
@@ -56,6 +58,8 @@ def step_logged_in_as(context: Context, user: str) -> None:
 
 @step('I save the storage state to "{path}"')
 def step_save_storage_state(context: Context, path: str) -> None:
+    if not path.strip():
+        raise ValueError("storage state path must not be empty")
     storage_path = Path(path)
     storage_path.parent.mkdir(parents=True, exist_ok=True)
     require_browser_context(context).storage_state(path=str(storage_path))

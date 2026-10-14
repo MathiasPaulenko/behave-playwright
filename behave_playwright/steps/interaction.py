@@ -94,7 +94,7 @@ def step_uncheck(context: Context, target: str) -> None:
 
 @when('I press the "{key}" key')
 def step_press_key(context: Context, key: str) -> None:
-    require_page(context).keyboard.press(key)
+    main_page(context).keyboard.press(key)
 
 
 @when('I press "{key}" on "{target}"')
@@ -108,7 +108,10 @@ def step_press_key_on(context: Context, key: str, target: str) -> None:
 @when('I upload "{path}" to "{field}"')
 @when('I upload the file "{path}" to "{field}"')
 def step_upload(context: Context, field: str, path: str) -> None:
-    resolve_first(require_page(context), field, "field").set_input_files(path)
+    file_path = Path(path)
+    if not path.strip() or not file_path.is_file():
+        raise FileNotFoundError(f"cannot upload — file not found: {path!r}")
+    resolve_first(require_page(context), field, "field").set_input_files(str(file_path))
 
 
 @when('I scroll to "{target}"')
@@ -127,14 +130,20 @@ def step_drag(context: Context, source: str, target: str) -> None:
 def step_take_screenshot(context: Context) -> None:
     path = _manual_screenshot_path(context, "screenshot")
     main_page(context).screenshot(path=str(path), full_page=True)
-    context.attach("image/png", path.read_bytes())
+    _attach_png(context, path)
 
 
 @when('I take a screenshot of "{target}"')
 def step_take_element_screenshot(context: Context, target: str) -> None:
     path = _manual_screenshot_path(context, "element")
     resolve_first(require_page(context), target, "any").screenshot(path=str(path))
-    context.attach("image/png", path.read_bytes())
+    _attach_png(context, path)
+
+
+def _attach_png(context: Context, path: Path) -> None:
+    attach = getattr(context, "attach", None)
+    if attach is not None:
+        attach("image/png", path.read_bytes())
 
 
 def _manual_screenshot_path(context: Context, fallback_name: str) -> Path:

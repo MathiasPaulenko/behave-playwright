@@ -11,6 +11,7 @@ Values are resolved in order of precedence:
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -80,10 +81,10 @@ class BrowserConfig:
         viewport = _parse_viewport(get("viewport"))
         slow_mo = _parse_float("slow_mo", get("slow_mo", "0") or "0")
         timeout = _parse_float("timeout", get("timeout", "30000") or "30000")
-        if slow_mo < 0:
-            raise ValueError(f"Invalid slow_mo: {slow_mo} (must be >= 0)")
-        if timeout < 0:
-            raise ValueError(f"Invalid timeout: {timeout} (must be >= 0)")
+        if not math.isfinite(slow_mo) or slow_mo < 0:
+            raise ValueError(f"Invalid slow_mo: {slow_mo} (must be a finite number >= 0)")
+        if not math.isfinite(timeout) or timeout < 0:
+            raise ValueError(f"Invalid timeout: {timeout} (must be a finite number >= 0)")
 
         return cls(
             browser=browser,

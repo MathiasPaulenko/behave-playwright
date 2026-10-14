@@ -46,6 +46,12 @@ class FakeBrowserContext:
         self.pages.append(page)
         return page
 
+    def set_default_timeout(self, timeout: float) -> None:
+        self.timeout = timeout
+
+    def set_default_navigation_timeout(self, timeout: float) -> None:
+        self.navigation_timeout = timeout
+
     def close(self) -> None:
         self.closed = True
 

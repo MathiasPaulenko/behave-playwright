@@ -111,3 +111,15 @@ def test_zero_viewport_rejected() -> None:
 def test_negative_numbers_rejected(key: str) -> None:
     with pytest.raises(ValueError, match=key):
         BrowserConfig.from_sources({key: "-1"}, {})
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+def test_non_finite_timeout_rejected(value: str) -> None:
+    with pytest.raises(ValueError, match="timeout"):
+        BrowserConfig.from_sources({"timeout": value}, {})
+
+
+@pytest.mark.parametrize("value", ["nan", "inf"])
+def test_non_finite_slow_mo_rejected(value: str) -> None:
+    with pytest.raises(ValueError, match="slow_mo"):
+        BrowserConfig.from_sources({"slow_mo": value}, {})
