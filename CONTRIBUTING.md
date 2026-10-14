@@ -54,6 +54,16 @@ cd examples/saucedemo && behave    # real site — needs internet
    API changed.
 5. PRs run the same checks in CI across Python 3.11–3.13.
 
+## Releasing (maintainer)
+
+Publishing is automated through GitHub Actions + PyPI trusted publishing:
+
+1. Bump `version` in `pyproject.toml` and rename the `Unreleased`
+   CHANGELOG section to `0.x.y — YYYY-MM-DD`.
+2. Push, then `git tag v0.x.y && git push --tags`.
+3. `tag.yml` creates the GitHub Release, which triggers `release.yml` —
+   the package is built and published to PyPI via OIDC (no tokens).
+
 ## Reporting bugs
 
 Open an issue with a minimal reproduction — a small `.feature` file or a
