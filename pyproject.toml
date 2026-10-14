@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "behave-playwright"
+version = "0.1.0"
+description = "BDD web testing with Behave and Playwright: reusable Gherkin step definitions and browser lifecycle hooks"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Mathias Paulenko" },
+]
+keywords = ["behave", "playwright", "bdd", "gherkin", "testing", "e2e"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "behave>=1.2.6",
+    "playwright>=1.40",
+]
+
+[project.urls]
+Repository = "https://github.com/MathiasPaulenko/behave-playwright"
+Issues = "https://github.com/MathiasPaulenko/behave-playwright/issues"
+
+[project.scripts]
+behave-playwright = "behave_playwright.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "twine>=5.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/behave_playwright"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "W"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["behave_playwright"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["behave_playwright"]
+
+[[tool.mypy.overrides]]
+module = ["behave", "behave.*", "parse", "parse.*", "parse_type", "parse_type.*", "cfparse", "cfparse.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
