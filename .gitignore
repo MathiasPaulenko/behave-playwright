@@ -1,0 +1,33 @@
+# Private development docs — never publish
+ref/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+.env.*
+
+# Test artifacts
+reports/
+screenshots/
+videos/
+*.trace.zip
+test-results/
+.allure/
+allure-results/
+
+# Tooling
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
