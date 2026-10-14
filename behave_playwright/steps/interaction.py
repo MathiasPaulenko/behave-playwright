@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import re
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from behave import when
 
@@ -51,6 +54,26 @@ def step_clear(context: Context, field: str) -> None:
     resolve_first(require_page(context), field, "field").clear()
 
 
+@when('I type "{text}" in "{field}"')
+@when('I type "{text}" into "{field}"')
+def step_type(context: Context, text: str, field: str) -> None:
+    """Type character by character (triggers per-key events, unlike fill)."""
+    resolve_first(require_page(context), field, "field").press_sequentially(text)
+
+
+@when("I fill the form:")
+def step_fill_form(context: Context) -> None:
+    table = getattr(context, "table", None)
+    if table is None:
+        raise RuntimeError("I fill the form: requires a data table (| field | value |)")
+    headings = getattr(table, "headings", None) or []
+    page = require_page(context)
+    for row in table:
+        field = row["field"] if "field" in headings else row.cells[0]
+        value = row["value"] if "value" in headings else row.cells[1]
+        resolve_first(page, field, "field").fill(value)
+
+
 @when('I select "{value}" from "{field}"')
 @when('I select "{value}" in "{field}"')
 def step_select(context: Context, field: str, value: str) -> None:
@@ -82,3 +105,40 @@ def step_press_key_on(context: Context, key: str, target: str) -> None:
 @when('I upload the file "{path}" to "{field}"')
 def step_upload(context: Context, field: str, path: str) -> None:
     resolve_first(require_page(context), field, "field").set_input_files(path)
+
+
+@when('I scroll to "{target}"')
+def step_scroll_to(context: Context, target: str) -> None:
+    resolve_first(require_page(context), target, "any").scroll_into_view_if_needed()
+
+
+@when('I drag "{source}" to "{target}"')
+@when('I drag "{source}" onto "{target}"')
+def step_drag(context: Context, source: str, target: str) -> None:
+    page = require_page(context)
+    resolve_first(page, source, "any").drag_to(resolve_first(page, target, "any"))
+
+
+@when("I take a screenshot")
+def step_take_screenshot(context: Context) -> None:
+    path = _screenshot_path(context, "screenshot")
+    require_page(context).screenshot(path=str(path), full_page=True)
+    context.attach("image/png", path.read_bytes())
+
+
+@when('I take a screenshot of "{target}"')
+def step_take_element_screenshot(context: Context, target: str) -> None:
+    path = _screenshot_path(context, "element")
+    resolve_first(require_page(context), target, "any").screenshot(path=str(path))
+    context.attach("image/png", path.read_bytes())
+
+
+def _screenshot_path(context: Context, prefix: str) -> Path:
+    config: Any = getattr(context, "bp_config", None)
+    screenshots_dir = Path(getattr(config, "screenshots_dir", "screenshots"))
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+    scenario = getattr(context, "scenario", None)
+    name = getattr(scenario, "name", None) or prefix
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or prefix
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
+    return screenshots_dir / f"{slug}-{timestamp}.png"

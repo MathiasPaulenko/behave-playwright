@@ -49,6 +49,9 @@ class BrowserConfig:
     screenshots_on_failure: bool = True
     screenshots_dir: str = "screenshots"
     traces_dir: str = "traces"
+    video_dir: str = "videos"
+    record_video: bool = False
+    downloads_dir: str = "downloads"
 
     @classmethod
     def from_context(cls, context: Context) -> BrowserConfig:
@@ -90,6 +93,12 @@ class BrowserConfig:
             screenshots_on_failure=_parse_bool("screenshots", get("screenshots", "true") or "true"),
             screenshots_dir=get("screenshots_dir", "screenshots") or "screenshots",
             traces_dir=get("traces_dir", "traces") or "traces",
+            video_dir=get("video_dir", "videos") or "videos",
+            record_video=_parse_bool(
+                "record_video",
+                get("record_video") or get("video") or "false",
+            ),
+            downloads_dir=get("downloads_dir", "downloads") or "downloads",
         )
 
 

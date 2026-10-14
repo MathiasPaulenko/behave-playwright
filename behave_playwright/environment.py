@@ -98,6 +98,10 @@ def new_browser_context(context: Context, extra_args: dict[str, Any] | None = No
     if config.base_url:
         args["base_url"] = config.base_url
 
+    if config.record_video:
+        Path(config.video_dir).mkdir(parents=True, exist_ok=True)
+        args["record_video_dir"] = config.video_dir
+
     browser_context = context.browser.new_context(**args)
     page = browser_context.new_page()
     if config.timeout:
@@ -107,9 +111,18 @@ def new_browser_context(context: Context, extra_args: dict[str, Any] | None = No
     requests: list[Any] = []
     page.on("request", lambda request: requests.append(request))
 
+    console_errors: list[str] = []
+    page.on(
+        "console",
+        lambda message: console_errors.append(message.text) if message.type == "error" else None,
+    )
+    page.on("pageerror", lambda error: console_errors.append(str(error)))
+
     context.browser_context = browser_context
     context.page = page
     context.bp_requests = requests
+    context.bp_console_errors = console_errors
+    context.bp_downloads = []
 
 
 def after_scenario(context: Context, scenario: Scenario) -> None:
@@ -138,9 +151,19 @@ def after_scenario(context: Context, scenario: Scenario) -> None:
 
     _stop_tracing(context, scenario, config)
 
+    video = None
+    if config.record_video and page is not None and not page.is_closed():
+        try:
+            video = page.video
+        except PlaywrightError:
+            video = None
+
     browser_context = getattr(context, "browser_context", None)
     if browser_context is not None:
         browser_context.close()
+
+    if video is not None:
+        _handle_video(video, context, scenario, config)
 
 
 def after_all(context: Context) -> None:
@@ -151,6 +174,21 @@ def after_all(context: Context) -> None:
     playwright = getattr(context, "_bp_playwright", None)
     if playwright is not None:
         playwright.stop()
+
+
+def _handle_video(video: Any, context: Context, scenario: Scenario, config: BrowserConfig) -> None:
+    try:
+        raw_path = Path(video.path())
+    except PlaywrightError:
+        logger.warning("Could not resolve recorded video for %r", scenario.name)
+        return
+    if scenario.status == Status.failed:
+        dest = _artifact_path(scenario, config.video_dir, ".webm")
+        raw_path.replace(dest)
+        context.bp_video = dest
+        logger.info("Video saved to %s", dest)
+    else:
+        raw_path.unlink(missing_ok=True)
 
 
 def _device_descriptor(context: Context, name: str) -> dict[str, Any]:

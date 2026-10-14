@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from behave import then
 from playwright.sync_api import expect
@@ -107,3 +107,55 @@ def step_element_attribute(context: Context, target: str, name: str, value: str)
 @then('the "{field}" field should contain "{value}"')
 def step_field_value(context: Context, field: str, value: str) -> None:
     expect(resolve_first(require_page(context), field, "field")).to_have_value(value)
+
+
+@then('the "{name}" cookie should exist')
+def step_cookie_exists(context: Context, name: str) -> None:
+    if _cookie(context, name) is None:
+        raise AssertionError(f"cookie {name!r} not found")
+
+
+@then('the "{name}" cookie should have value "{value}"')
+def step_cookie_value(context: Context, name: str, value: str) -> None:
+    cookie = _cookie(context, name)
+    if cookie is None:
+        raise AssertionError(f"cookie {name!r} not found")
+    if cookie.get("value") != value:
+        raise AssertionError(
+            f"cookie {name!r}: expected value {value!r}, got {cookie.get('value')!r}"
+        )
+
+
+@then("there should be no console errors")
+def step_no_console_errors(context: Context) -> None:
+    _assert_no_console_errors(context)
+
+
+@then('there should be no console errors except "{pattern}"')
+def step_no_console_errors_except(context: Context, pattern: str) -> None:
+    _assert_no_console_errors(context, ignored=pattern)
+
+
+@then('the file "{name}" was downloaded')
+def step_file_downloaded(context: Context, name: str) -> None:
+    downloads = getattr(context, "bp_downloads", [])
+    if not any(path.name == name for path in downloads):
+        raise AssertionError(
+            f"no downloaded file named {name!r}; seen: {[p.name for p in downloads] or 'none'}"
+        )
+
+
+def _cookie(context: Context, name: str) -> dict[str, Any] | None:
+    cookies: list[dict[str, Any]] = context.browser_context.cookies()
+    for cookie in cookies:
+        if cookie.get("name") == name:
+            return cookie
+    return None
+
+
+def _assert_no_console_errors(context: Context, ignored: str | None = None) -> None:
+    errors: list[str] = getattr(context, "bp_console_errors", [])
+    if ignored is not None:
+        errors = [e for e in errors if re.search(ignored, e) is None]
+    if errors:
+        raise AssertionError(f"{len(errors)} console error(s): " + "; ".join(errors[:5]))

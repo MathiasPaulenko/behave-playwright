@@ -10,6 +10,7 @@ or call :func:`use_steps` from ``environment.py``.
 
 from behave_playwright.steps import (
     assertions,
+    browser,
     interaction,
     navigation,
     network,
@@ -19,6 +20,7 @@ from behave_playwright.steps import (
 
 __all__ = [
     "assertions",
+    "browser",
     "interaction",
     "navigation",
     "network",

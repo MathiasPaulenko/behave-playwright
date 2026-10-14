@@ -31,6 +31,7 @@ INDEX_HTML = """<!doctype html>
   <div id="secret" style="display:none">hidden text</div>
   <span class="dup">one</span><span class="dup">two</span>
   <p data-testid="greeting">hello from testid</p>
+  <a href="/file.txt" download id="dl">Get file</a>
 </body>
 </html>
 """
@@ -43,6 +44,15 @@ NEXT_HTML = """<!doctype html>
 
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
+        if self.path.startswith("/file.txt"):
+            payload = b"file contents"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Disposition", 'attachment; filename="file.txt"')
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
         body = NEXT_HTML if self.path.startswith("/next") else INDEX_HTML
         payload = body.encode()
         self.send_response(200)

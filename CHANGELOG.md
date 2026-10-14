@@ -24,3 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   device emulation (`I emulate device`), tracing (`I enable tracing` →
   `.trace.zip` on failure), and storage state (`I use/save the storage state`,
   `I am logged in as`).
+- More steps: form fill from data table, `I type`, scroll, drag & drop,
+  manual screenshots, cookies + console-error + download assertions, tabs,
+  iframes, dialogs, and downloads (`downloads/`).
+- Optional video recording (`record_video`) — `.webm` kept on failure.

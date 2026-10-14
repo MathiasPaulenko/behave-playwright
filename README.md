@@ -93,6 +93,14 @@ When I select "Banana" from "Fruit"
 When I check "Accept terms" / I uncheck "Accept terms"
 When I press the "Enter" key        # or: I press "Enter" on "Search"
 When I upload the file "data.csv" to "Upload"
+When I type "hello" in "Search"      # per-key events (fill is instant)
+When I fill the form:                # behave data table
+  | field    | value   |
+  | Email    | a@b.c   |
+  | Password | secret  |
+When I scroll to "css=#footer"
+When I drag "css=#src" to "css=#dst"
+When I take a screenshot / I take a screenshot of "css=#modal"
 ```
 
 **Assertions** (auto-retrying — Playwright `expect` under the hood)
@@ -106,6 +114,9 @@ Then I should see 3 "css=.item" elements
 Then the "css=.banner" element should contain "Sale ends today"
 Then the "css=.logo" element should have attribute "src" with value "/logo.png"
 Then the "Email" field should have value "user@test.com"
+Then the "session" cookie should exist / have value "abc123"
+Then there should be no console errors / except "favicon"
+Then the file "report.pdf" was downloaded
 ```
 
 **Waits** — Playwright auto-waits everywhere; these exist for when an explicit wait is the honest expression of intent
@@ -139,6 +150,18 @@ When I save the storage state to "auth/ada.json"
 Given I use the storage state "auth/ada.json"
 ```
 
+**Tabs, frames, dialogs, downloads**
+
+```gherkin
+When I open a new tab with "/docs"
+When I click "Help" in a new tab       # popup capture + switch
+When I switch to tab 2 / I close the current tab
+When I switch to the "payment" iframe / I switch back to the main frame
+When I accept the next dialog / I dismiss the next dialog
+When I answer the next dialog with "42"
+When I click "Export" and download the file
+```
+
 ## Configuration
 
 Via `behave -D key=value`, `behave.ini` `userdata`, or `BEHAVE_PW_*` env vars:
@@ -157,6 +180,9 @@ Via `behave -D key=value`, `behave.ini` `userdata`, or `BEHAVE_PW_*` env vars:
 | `screenshots` | `BEHAVE_PW_SCREENSHOTS` | `true` | screenshot on scenario failure |
 | `screenshots_dir` | `BEHAVE_PW_SCREENSHOTS_DIR` | `screenshots` | |
 | `traces_dir` | `BEHAVE_PW_TRACES_DIR` | `traces` | where failure traces are saved |
+| `record_video` | `BEHAVE_PW_RECORD_VIDEO` | `false` | record every scenario, keep `.webm` on failure |
+| `video_dir` | `BEHAVE_PW_VIDEO_DIR` | `videos` | |
+| `downloads_dir` | `BEHAVE_PW_DOWNLOADS_DIR` | `downloads` | where download steps save files |
 
 ```bash
 behave -D browser=firefox -D headless=false -D base_url=http://localhost:8000
