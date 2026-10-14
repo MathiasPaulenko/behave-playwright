@@ -31,3 +31,6 @@ htmlcov/
 # IDE
 .idea/
 .vscode/
+
+# behave formatter artifacts
+*.output
