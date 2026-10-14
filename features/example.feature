@@ -1,8 +1,7 @@
-@wip
-Feature: behave-playwright dogfooding example
+Feature: Example
+  A first scenario to check the behave-playwright wiring.
 
-  Scenario: Navigate and interact
-    Given I navigate to "/"
-    When I fill "Email" with "user@test.com"
-    And I click "Sign in"
-    Then I should see "Welcome back"
+  Scenario: Example Domain
+    Given I navigate to "https://example.com"
+    Then the title should contain "Example"
+    And the "Learn more" element should be visible
