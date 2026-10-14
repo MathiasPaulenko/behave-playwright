@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from behave import step
 
+from behave_playwright._context import require_browser_context
 from behave_playwright.environment import _device_descriptor, new_browser_context
 
 if TYPE_CHECKING:
@@ -57,7 +58,7 @@ def step_logged_in_as(context: Context, user: str) -> None:
 def step_save_storage_state(context: Context, path: str) -> None:
     storage_path = Path(path)
     storage_path.parent.mkdir(parents=True, exist_ok=True)
-    context.browser_context.storage_state(path=str(storage_path))
+    require_browser_context(context).storage_state(path=str(storage_path))
     logger.info("Storage state saved to %s", storage_path)
 
 
@@ -66,6 +67,6 @@ def step_enable_tracing(context: Context) -> None:
     """Record a Playwright trace; on scenario failure it's saved as
     ``<traces_dir>/<scenario>.trace.zip`` (open with `playwright show-trace`).
     """
-    browser_context = context.browser_context
+    browser_context = require_browser_context(context)
     browser_context.tracing.start(screenshots=True, snapshots=True, sources=True)
     context._bp_tracing = browser_context

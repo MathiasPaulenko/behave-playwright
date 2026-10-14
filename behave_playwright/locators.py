@@ -61,6 +61,8 @@ _ROLE_RE = re.compile(r"^role=([a-z]+)(?::(.*))?$", re.DOTALL | re.IGNORECASE)
 def resolve(page: Page, target: str, kind: TargetKind = "action") -> Locator:
     """Resolve ``target`` into a locator. May match multiple elements."""
     target = target.strip()
+    if not target:
+        raise ValueError("empty element target — pass a label, role, text or selector")
     explicit = _explicit(page, target)
     if explicit is not None:
         return explicit

@@ -61,6 +61,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _cmd_init(directory: Path, force: bool = False) -> int:
+    if directory.exists() and not directory.is_dir():
+        print(f"error: {directory} exists and is not a directory")
+        return 1
     created, skipped = [], []
     for rel_path, content in _SCAFFOLD_FILES.items():
         path = directory / rel_path

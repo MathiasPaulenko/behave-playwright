@@ -42,3 +42,10 @@ def test_unknown_command_is_error() -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["bogus"])
     assert exc_info.value.code != 0
+
+
+def test_init_rejects_file_as_directory(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    existing = tmp_path / "afile"
+    existing.write_text("x")
+    assert main(["init", "-d", str(existing)]) == 1
+    assert "not a directory" in capsys.readouterr().out

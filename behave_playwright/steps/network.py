@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from behave import step, then
 
-from behave_playwright._context import require_page
+from behave_playwright._context import main_page, require_page
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -38,7 +38,7 @@ def step_intercept_status(context: Context, pattern: str, code: int) -> None:
 
 @step('I intercept "{pattern}" and abort')
 def step_intercept_abort(context: Context, pattern: str) -> None:
-    require_page(context).route(_url_pattern(pattern), lambda route: route.abort())
+    main_page(context).route(_url_pattern(pattern), lambda route: route.abort())
 
 
 @then('a request was made to "{pattern}"')
@@ -53,7 +53,7 @@ def step_request_made_method(context: Context, method: str, pattern: str) -> Non
 
 def _fulfill_route(context: Context, pattern: str, status: int = 200, body: str = "") -> None:
     content_type = "application/json" if _is_json(body) else "text/plain"
-    require_page(context).route(
+    main_page(context).route(
         _url_pattern(pattern),
         lambda route: route.fulfill(status=status, body=body, content_type=content_type),
     )

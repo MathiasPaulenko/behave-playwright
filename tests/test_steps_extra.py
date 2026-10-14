@@ -43,6 +43,19 @@ def test_fill_form_single_column_row_fails(context: SimpleNamespace, page: Page)
         interaction.step_fill_form(context)
 
 
+def test_select_by_label_not_value(context: SimpleNamespace, page: Page) -> None:
+    page.set_content(
+        '<select aria-label="Sort"><option value="lohi">Price (low to high)</option></select>'
+    )
+    interaction.step_select(context, "Sort", "Price (low to high)")
+    assert page.locator("select").input_value() == "lohi"
+
+
+def test_empty_target_rejected(context: SimpleNamespace, page: Page) -> None:
+    with pytest.raises(ValueError, match="empty element target"):
+        interaction.step_click(context, "  ")
+
+
 def test_press_key_on_placeholder_target(context: SimpleNamespace, page: Page) -> None:
     # "press on" must resolve fields too, not just clickable roles
     page.set_content('<input placeholder="Type here">')

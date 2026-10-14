@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from playwright.sync_api import Page
 
@@ -22,6 +22,23 @@ def require_page(context: Context) -> Page:
             "`from behave_playwright.environment import *` in features/environment.py"
         )
     return cast(Page, page)
+
+
+def main_page(context: Context) -> Page:
+    """Return the real ``Page`` — ``context.page`` may be a ``Frame``
+    while inside an iframe; the true page is remembered there."""
+    return cast(Page, getattr(context, "_bp_main_page", None) or require_page(context))
+
+
+def require_browser_context(context: Context) -> Any:
+    """Return ``context.browser_context`` or fail with an actionable error."""
+    browser_context = getattr(context, "browser_context", None)
+    if browser_context is None:
+        raise RuntimeError(
+            "context.browser_context is not set — wire the hooks first: "
+            "`from behave_playwright.environment import *` in features/environment.py"
+        )
+    return browser_context
 
 
 def resolve_url(context: Context, url: str) -> str:

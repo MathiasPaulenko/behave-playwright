@@ -7,6 +7,7 @@ expression of the expected behavior.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from behave import when
@@ -50,4 +51,5 @@ def step_wait_network_idle(context: Context) -> None:
 
 @when("I wait {seconds} seconds")
 def step_wait_seconds(context: Context, seconds: str) -> None:
-    require_page(context).wait_for_timeout(float(seconds) * 1000)
+    require_page(context)  # wiring check — Frame has no wait_for_timeout
+    time.sleep(float(seconds))

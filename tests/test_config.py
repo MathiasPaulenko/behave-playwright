@@ -100,3 +100,14 @@ def test_screenshots_disabled() -> None:
     config = BrowserConfig.from_sources({"screenshots": "false", "screenshots_dir": "shots"}, {})
     assert config.screenshots_on_failure is False
     assert config.screenshots_dir == "shots"
+
+
+def test_zero_viewport_rejected() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        BrowserConfig.from_sources({"viewport": "0x720"}, {})
+
+
+@pytest.mark.parametrize("key", ["timeout", "slow_mo"])
+def test_negative_numbers_rejected(key: str) -> None:
+    with pytest.raises(ValueError, match=key):
+        BrowserConfig.from_sources({key: "-1"}, {})

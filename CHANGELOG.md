@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `I press "<key>" on "<target>"` now resolves form fields too (not only
   clickable roles).
+- `I select "<x>" from "<field>"` matches option labels (visible text),
+  not raw values.
+- Steps that act at page level (navigate back/reload, intercept,
+  screenshot, waits) keep working while inside an iframe.
+- Empty element targets are rejected with a clear error.
+- Config rejects negative `timeout`/`slow_mo` and non-positive viewports.
+- `init -d <path>` fails cleanly when the target is an existing file.
 - `after_scenario` no longer crashes when a scenario fails inside an
   iframe — artifacts capture the real page.
 - Switching tabs no longer duplicates request/console captures or loses

@@ -119,7 +119,7 @@ def test_url_and_title_assertions_inside_iframe(
     env_context.bp_config = BrowserConfig(base_url=base_url)
     env_context.page.goto(base_url)
     env_context.page.set_content(
-        '<html><head><title>Framed</title></head>'
+        "<html><head><title>Framed</title></head>"
         '<body><iframe name="fr" srcdoc="<p>x</p>"></iframe></body></html>'
     )
     env_context.page.wait_for_selector("iframe")
@@ -147,3 +147,21 @@ def test_failure_inside_iframe_still_captures_screenshot(
     env_context.attach = lambda *args: None
     environment.after_scenario(env_context, SimpleNamespace(name="f", status=Status.failed))
     assert list(tmp_path.glob("*.png"))
+
+
+def test_steps_act_on_main_page_inside_iframe(
+    env_context: SimpleNamespace, base_url: str, tmp_path: Path
+) -> None:
+    from behave_playwright.steps import interaction, navigation, network
+
+    env_context.bp_config = BrowserConfig(base_url=base_url, screenshots_dir=str(tmp_path))
+    env_context.page.goto(base_url)
+    env_context.page.set_content('<iframe name="fr" srcdoc="<p>x</p>"></iframe>')
+    env_context.page.wait_for_selector("iframe")
+    browser.step_switch_to_iframe(env_context, "fr")
+
+    network.step_intercept_abort(env_context, "**/nothing")
+    env_context.attach = lambda *a: None
+    interaction.step_take_screenshot(env_context)
+    navigation.step_go_back(env_context)
+    navigation.step_reload(env_context)

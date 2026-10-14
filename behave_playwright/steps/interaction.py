@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from behave import when
 
-from behave_playwright._context import require_page
+from behave_playwright._context import main_page, require_page
 from behave_playwright.environment import _artifact_path
 from behave_playwright.locators import resolve, resolve_first
 
@@ -126,7 +126,7 @@ def step_drag(context: Context, source: str, target: str) -> None:
 @when("I take a screenshot")
 def step_take_screenshot(context: Context) -> None:
     path = _manual_screenshot_path(context, "screenshot")
-    require_page(context).screenshot(path=str(path), full_page=True)
+    main_page(context).screenshot(path=str(path), full_page=True)
     context.attach("image/png", path.read_bytes())
 
 

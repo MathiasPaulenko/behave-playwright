@@ -78,6 +78,12 @@ class BrowserConfig:
             )
 
         viewport = _parse_viewport(get("viewport"))
+        slow_mo = _parse_float("slow_mo", get("slow_mo", "0") or "0")
+        timeout = _parse_float("timeout", get("timeout", "30000") or "30000")
+        if slow_mo < 0:
+            raise ValueError(f"Invalid slow_mo: {slow_mo} (must be >= 0)")
+        if timeout < 0:
+            raise ValueError(f"Invalid timeout: {timeout} (must be >= 0)")
 
         return cls(
             browser=browser,
@@ -88,8 +94,8 @@ class BrowserConfig:
             viewport_height=viewport[1] if viewport else None,
             device=_parse_optional_str(get("device")),
             locale=_parse_optional_str(get("locale")),
-            slow_mo=_parse_float("slow_mo", get("slow_mo", "0") or "0"),
-            timeout=_parse_float("timeout", get("timeout", "30000") or "30000"),
+            slow_mo=slow_mo,
+            timeout=timeout,
             screenshots_on_failure=_parse_bool("screenshots", get("screenshots", "true") or "true"),
             screenshots_dir=get("screenshots_dir", "screenshots") or "screenshots",
             traces_dir=get("traces_dir", "traces") or "traces",
@@ -124,7 +130,10 @@ def _parse_viewport(raw: str | None) -> tuple[int, int] | None:
     parts = raw.lower().split("x")
     if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
         raise ValueError(f"Invalid viewport {raw!r}; expected 'WIDTHxHEIGHT' (e.g. 1920x1080)")
-    return int(parts[0]), int(parts[1])
+    width, height = int(parts[0]), int(parts[1])
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Invalid viewport {raw!r}; width and height must be positive")
+    return width, height
 
 
 def _parse_optional_str(raw: str | None) -> str | None:
