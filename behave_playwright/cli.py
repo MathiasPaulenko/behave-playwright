@@ -30,6 +30,15 @@ Feature: Example
     Then the title should contain "Example"
     And the "Learn more" element should be visible
 """,
+    ".gitignore": """\
+__pycache__/
+screenshots/
+videos/
+traces/
+downloads/
+auth/
+*.output
+""",
 }
 
 

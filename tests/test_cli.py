@@ -13,6 +13,8 @@ def test_init_creates_scaffold(tmp_path: Path) -> None:
     assert (tmp_path / "features/environment.py").is_file()
     assert (tmp_path / "features/steps/behave_playwright_steps.py").is_file()
     assert (tmp_path / "features/example.feature").is_file()
+    assert (tmp_path / ".gitignore").is_file()
+    assert "screenshots/" in (tmp_path / ".gitignore").read_text()
     assert "navigate to" in (tmp_path / "features/example.feature").read_text()
 
 

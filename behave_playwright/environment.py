@@ -184,12 +184,12 @@ def after_scenario(context: Context, scenario: Scenario) -> None:
     # to the real Page, which also holds .video and .is_closed.
     page = getattr(context, "_bp_main_page", None) or getattr(context, "page", None)
 
-    if (
-        config.screenshots_on_failure
-        and scenario.status == Status.failed
-        and page is not None
-        and not page.is_closed()
-    ):
+    # A stray Frame here (custom steps can leave one) can't screenshot or
+    # expose video — treat non-pages and closed pages as absent.
+    if page is not None and (not hasattr(page, "is_closed") or page.is_closed()):
+        page = None
+
+    if config.screenshots_on_failure and scenario.status == Status.failed and page is not None:
         path = _artifact_path(scenario, config.screenshots_dir, ".png")
         try:
             page.screenshot(path=str(path), full_page=True, timeout=5_000)
@@ -206,7 +206,7 @@ def after_scenario(context: Context, scenario: Scenario) -> None:
     _stop_tracing(context, scenario, config)
 
     video = None
-    if config.record_video and page is not None and not page.is_closed():
+    if config.record_video and page is not None:
         try:
             video = page.video
         except PlaywrightError:

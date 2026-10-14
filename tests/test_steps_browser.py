@@ -166,3 +166,21 @@ def test_steps_act_on_main_page_inside_iframe(
     interaction.step_press_key(env_context, "Tab")
     navigation.step_go_back(env_context)
     navigation.step_reload(env_context)
+
+
+def test_empty_iframe_name_rejected(env_context: SimpleNamespace) -> None:
+    with pytest.raises(ValueError, match="empty"):
+        browser.step_switch_to_iframe(env_context, "  ")
+
+
+def test_after_scenario_with_frame_as_page_does_not_crash(
+    env_context: SimpleNamespace, tmp_path: Path
+) -> None:
+    # a custom step left a Frame on context.page without _bp_main_page —
+    # teardown must survive it (no artifacts, just cleanup)
+    env_context.bp_config = BrowserConfig(screenshots_dir=str(tmp_path))
+    env_context.page.set_content('<iframe srcdoc="<p>x</p>"></iframe>')
+    env_context.page.wait_for_selector("iframe")
+    env_context.page = env_context.page.frames[1]
+    environment.after_scenario(env_context, SimpleNamespace(name="f", status=Status.failed))
+    assert list(tmp_path.glob("*.png")) == []

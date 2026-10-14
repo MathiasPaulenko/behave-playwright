@@ -57,7 +57,7 @@ class BrowserConfig:
     @classmethod
     def from_context(cls, context: Context) -> BrowserConfig:
         """Build a config from a behave ``Context`` (userdata + environment)."""
-        userdata = getattr(context.config, "userdata", None) or {}
+        userdata = getattr(getattr(context, "config", None), "userdata", None) or {}
         return cls.from_sources(userdata, os.environ)
 
     @classmethod

@@ -56,6 +56,8 @@ def step_close_tab(context: Context) -> None:
 
 @step('I switch to the "{name}" iframe')
 def step_switch_to_iframe(context: Context, name: str) -> None:
+    if not name.strip():
+        raise ValueError("iframe name/url must not be empty")
     top = getattr(context, "_bp_main_page", None)
     if top is None:
         top = require_page(context)
