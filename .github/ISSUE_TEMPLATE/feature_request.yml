@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest a new step, config option or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like?
+      description: e.g. a new step `When I press "Tab"`, a config key, a hook.
+    validations:
+      required: true
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: What does it let you test that you can't express today?
+    validations:
+      required: true
+  - type: textarea
+    id: gherkin
+    attributes:
+      label: Proposed syntax
+      description: How would the feature file look?
+      render: gherkin

@@ -286,6 +286,8 @@ mypy            # type check
 behave --dry-run  # validate step registration
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE). Security reports: [SECURITY.md](SECURITY.md).

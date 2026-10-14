@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/MathiasPaulenko/behave-playwright#readme
+    about: README covers all steps, config and examples
+  - name: Playwright docs
+    url: https://playwright.dev/python/docs/intro
+    about: Element targeting, assertions and browser APIs

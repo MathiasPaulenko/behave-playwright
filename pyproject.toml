@@ -31,6 +31,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/MathiasPaulenko/behave-playwright"
 Issues = "https://github.com/MathiasPaulenko/behave-playwright/issues"
+Changelog = "https://github.com/MathiasPaulenko/behave-playwright/blob/master/CHANGELOG.md"
 
 [project.scripts]
 behave-playwright = "behave_playwright.cli:main"
