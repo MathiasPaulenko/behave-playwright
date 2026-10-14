@@ -25,7 +25,7 @@ behave-playwright init      # scaffold behave.ini + features/
 behave
 ```
 
-`init` creates:
+`init` creates (use `-d DIR` to pick the target, `--force` to overwrite):
 
 ```text
 behave.ini
@@ -47,7 +47,49 @@ from behave_playwright.environment import *  # noqa: F401,F403
 import behave_playwright.steps  # noqa: F401
 ```
 
-That's it — `context.page`, `context.browser_context` and `context.browser` are managed automatically (one browser per run, fresh context + page per scenario) and a screenshot is captured and attached on scenario failure.
+That's it — one browser per run, fresh context + page per scenario, screenshot captured and attached on failure.
+
+## The context
+
+`context` (behave's) is wired automatically per scenario:
+
+| Attribute | Contents |
+|---|---|
+| `context.page` | Playwright `Page` (or the active `Frame` after `I switch to ... iframe`) |
+| `context.browser_context` | Playwright `BrowserContext` |
+| `context.browser` | Shared Playwright `Browser` (one per run) |
+| `context.bp_config` | Resolved `BrowserConfig` |
+| `context.bp_requests` | All requests seen by the scenario's page(s) |
+| `context.bp_console_errors` | `console.error` + uncaught page errors |
+| `context.bp_downloads` | Files downloaded via download steps |
+| `context.bp_screenshot` / `bp_trace` / `bp_video` | Artifact paths on failure |
+
+## Custom hooks
+
+The lifecycle hooks are plain functions — delegate when you need your own setup:
+
+```python
+# features/environment.py
+from behave_playwright import environment as bp
+
+def before_all(context):
+    my_app.start()
+    context.config.userdata.setdefault("base_url", "http://localhost:8000")
+    bp.before_all(context)
+
+def before_scenario(context, scenario):
+    my_app.reset_db()
+    bp.before_scenario(context, scenario)
+
+def after_scenario(context, scenario):
+    bp.after_scenario(context, scenario)
+
+def after_all(context):
+    bp.after_all(context)
+    my_app.stop()
+```
+
+Steps register on import — `import behave_playwright.steps` in a step file, or `behave_playwright.steps.use_steps()` from `environment.py` to make it explicit.
 
 ## Element targeting
 
@@ -78,26 +120,25 @@ Force a strategy with a prefix:
 **Navigation**
 
 ```gherkin
-Given I navigate to "/login"        # resolves against base_url
+Given I navigate to "/login"        # aliases: I go to, I open — resolves against base_url
 When I go back / forward
-When I reload the page
+When I reload the page              # alias: I refresh the page
 ```
 
 **Interaction**
 
 ```gherkin
-When I click "Sign in"              # also: double click, right click, hover
-When I fill "Email" with "a@b.c"    # also: I enter "x" in "Email"
-When I clear "Email"
-When I select "Banana" from "Fruit"
-When I check "Accept terms" / I uncheck "Accept terms"
-When I press the "Enter" key        # or: I press "Enter" on "Search"
-When I upload the file "data.csv" to "Upload"
-When I type "hello" in "Search"      # per-key events (fill is instant)
-When I fill the form:                # behave data table
+When I click "Sign in"              # aliases: click on, double click, right click, hover
+When I fill "Email" with "a@b.c"    # aliases: fill in ... with, I enter "x" in/into "Email"
+When I type "hello" in "Search"     # per-key events (fill is instant)
+When I fill the form:               # data table: columns | field | value |
   | field    | value   |
   | Email    | a@b.c   |
-  | Password | secret  |
+When I clear "Email"
+When I select "Banana" from "Fruit" # by label; alias: in
+When I check "Accept terms" / I uncheck "Accept terms"
+When I press the "Enter" key        # or: I press "Enter" on/in "Search"
+When I upload the file "data.csv" to "Upload"
 When I scroll to "css=#footer"
 When I drag "css=#src" to "css=#dst"
 When I take a screenshot / I take a screenshot of "css=#modal"
@@ -107,11 +148,13 @@ When I take a screenshot / I take a screenshot of "css=#modal"
 
 ```gherkin
 Then I should see "Welcome back" / I should not see "Error"
-Then the "css=.modal" element should be visible / hidden / enabled / disabled / checked
+Then the "css=.modal" element should be visible / hidden / enabled / disabled / checked / not checked
+Then I should see the "css=.modal" element
 Then the url should be "/dashboard" / the url should contain "dashboard"
 Then the title should be "Home" / the title should contain "Hom"
 Then I should see 3 "css=.item" elements
-Then the "css=.banner" element should contain "Sale ends today"
+Then the "css=.banner" element should contain "Sale ends today"   # substring
+Then the "css=.banner" element should have text "Sale: 50%"       # exact
 Then the "css=.logo" element should have attribute "src" with value "/logo.png"
 Then the "Email" field should have value "user@test.com"
 Then the "session" cookie should exist / have value "abc123"
@@ -122,21 +165,22 @@ Then the file "report.pdf" was downloaded
 **Waits** — Playwright auto-waits everywhere; these exist for when an explicit wait is the honest expression of intent
 
 ```gherkin
-When I wait for "css=.spinner" to be hidden
-When I wait for text "Loaded"
-When I wait for the page to load / I wait for the network to be idle
-When I wait 2 seconds
+When I wait for "css=.spinner" to be hidden   # also: to disappear / the "x" element
+When I wait for text "Loaded"                 # also: for the text "Loaded"
+When I wait for the page to load / I wait for navigation
+When I wait for the network to be idle
+When I wait 2 seconds                         # only wait_for_timeout in the lib
 ```
 
-**Network** — interception patterns: glob (`**/api/*`, `*` within a segment, `**` across), bare path (`/api/x` → `**/api/x`), or `/regex/`
+**Network** — interception patterns: glob (`**/api/*`, `*` within a segment, `**` across), bare path (`/api/x` → `**/api/x`), or `/regex/`. Intercept steps register routes — use them *before* navigation.
 
 ```gherkin
-When I intercept "/api/users" and return:
-  """[{"name": "Ada"}]"""
+Given I intercept "/api/users" and return:     # docstring is required
+  """[{"name": "Ada"}]"""                       # served as application/json
 When I intercept "**/api/health" and respond with status 503:
-  """backend is down"""
+  """backend is down"""                         # optional docstring body
 When I intercept "**/analytics" and abort
-Then a request was made to "**/api/login"
+Then a request was made to "**/api/login"       # waits up to `timeout` for it
 Then a "POST" request was made to "**/api/login"
 ```
 
@@ -144,8 +188,8 @@ Then a "POST" request was made to "**/api/login"
 
 ```gherkin
 When I emulate device "iPhone 12"
-When I enable tracing          # on failure → <traces_dir>/<scenario>.trace.zip
-Given I am logged in as "ada"  # loads auth/ada.json
+When I enable tracing          # on failure → <traces_dir>/<scenario>.trace.zip (view: playwright show-trace)
+Given I am logged in as "ada"  # loads auth/ada.json (convention)
 When I save the storage state to "auth/ada.json"
 Given I use the storage state "auth/ada.json"
 ```
@@ -156,10 +200,11 @@ Given I use the storage state "auth/ada.json"
 When I open a new tab with "/docs"
 When I click "Help" in a new tab       # popup capture + switch
 When I switch to tab 2 / I close the current tab
-When I switch to the "payment" iframe / I switch back to the main frame
-When I accept the next dialog / I dismiss the next dialog
-When I answer the next dialog with "42"
-When I click "Export" and download the file
+When I switch to the "payment" iframe  # steps now act on the frame…
+When I switch back to the main frame   # …until you switch back
+When I accept the next dialog          # must precede the action that opens it
+When I dismiss the next dialog / I answer the next dialog with "42"
+When I click "Export" and download the file  # saved to downloads_dir
 ```
 
 ## Configuration
@@ -188,6 +233,8 @@ Via `behave -D key=value`, `behave.ini` `userdata`, or `BEHAVE_PW_*` env vars:
 behave -D browser=firefox -D headless=false -D base_url=http://localhost:8000
 ```
 
+Keys can also be namespaced to avoid collisions with other `-D` values: `-D behave_playwright.browser=firefox` works too.
+
 ## Examples
 
 [`examples/saucedemo`](examples/saucedemo) is a complete project against the classic [saucedemo.com](https://www.saucedemo.com) test site: login, inventory, cart flow and network mocking — all with bundled steps plus one custom step composed via `execute_steps`. `cd examples/saucedemo && behave` (needs internet).
@@ -200,6 +247,19 @@ The bundled steps cover the common cases; write your own on top of `context.page
 @then("the cart badge shows {count:d} items")
 def step_cart_badge(context, count):
     expect(context.page.locator(".cart-badge")).to_have_text(str(count))
+```
+
+Or compose bundled steps with `execute_steps`:
+
+```python
+@given("I am logged in")
+def step_logged_in(context):
+    context.execute_steps('''
+        Given I navigate to "/"
+        When I fill "Email" with "a@b.c"
+        And I fill "Password" with "secret"
+        And I click "Sign in"
+        ''')
 ```
 
 ## Philosophy
