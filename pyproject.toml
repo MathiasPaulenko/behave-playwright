@@ -46,12 +46,12 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/behave_playwright"]
+packages = ["behave_playwright"]
 
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-src = ["src", "tests"]
+src = [".", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "W"]
@@ -62,7 +62,7 @@ known-first-party = ["behave_playwright"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-mypy_path = "src"
+mypy_path = "."
 packages = ["behave_playwright"]
 
 [[tool.mypy.overrides]]
