@@ -1,8 +1,14 @@
 name: release
 
+# Publish to PyPI when a v* tag is pushed (tag.yml creates the GitHub
+# Release separately). `workflow_dispatch` allows manual re-runs.
+# Note: release.published is NOT used because releases created by
+# GITHUB_TOKEN do not trigger downstream workflows.
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 permissions:
   id-token: write
