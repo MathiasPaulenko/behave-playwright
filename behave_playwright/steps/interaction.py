@@ -108,7 +108,7 @@ def step_press_key_on(context: Context, key: str, target: str) -> None:
 @when('I upload "{path}" to "{field}"')
 @when('I upload the file "{path}" to "{field}"')
 def step_upload(context: Context, field: str, path: str) -> None:
-    file_path = Path(path)
+    file_path = Path(path).expanduser()
     if not path.strip() or not file_path.is_file():
         raise FileNotFoundError(f"cannot upload — file not found: {path!r}")
     resolve_first(require_page(context), field, "field").set_input_files(str(file_path))

@@ -10,7 +10,7 @@ from behave.model import Status, Table
 from playwright.sync_api import Page
 
 from behave_playwright import BrowserConfig, environment
-from behave_playwright.steps import assertions, interaction
+from behave_playwright.steps import assertions, interaction, session, waiting
 
 
 def test_type_characters(context: SimpleNamespace, page: Page) -> None:
@@ -176,3 +176,79 @@ def test_screenshot_without_attach_still_saves(
     context.scenario = SimpleNamespace(name="shot")
     interaction.step_take_screenshot(context)
     assert list(tmp_path.glob("*.png"))
+
+
+def test_resolve_url_scheme_variants() -> None:
+    from behave_playwright._context import resolve_url
+
+    ctx = SimpleNamespace(bp_config=BrowserConfig(base_url="http://x"))
+    assert resolve_url(ctx, "mailto:a@b.c") == "mailto:a@b.c"
+    assert resolve_url(ctx, "tel:+15551234") == "tel:+15551234"
+    assert resolve_url(ctx, "file:///tmp/x.html") == "file:///tmp/x.html"
+    assert resolve_url(ctx, "javascript:void(0)") == "javascript:void(0)"
+    assert resolve_url(ctx, "  http://a.com  ") == "http://a.com"
+
+
+@pytest.mark.parametrize("bad", ["abc", "-1", "nan", "inf"])
+def test_wait_seconds_invalid(context: SimpleNamespace, bad: str) -> None:
+    with pytest.raises(ValueError, match="wait"):
+        waiting.step_wait_seconds(context, bad)
+
+
+def test_wait_seconds_valid(context: SimpleNamespace) -> None:
+    waiting.step_wait_seconds(context, "0.01")
+
+
+def test_wait_load_inside_iframe_uses_main_page(context: SimpleNamespace) -> None:
+    # inside an iframe context.page is a Frame — "wait for the page to load"
+    # must wait on the real Page, matching the navigation steps' semantics
+    waited: list[str] = []
+    context._bp_main_page = SimpleNamespace(wait_for_load_state=waited.append)
+    context.page = SimpleNamespace()  # a Frame has no business here
+    waiting.step_wait_load(context)
+    waiting.step_wait_network_idle(context)
+    assert waited == ["load", "networkidle"]
+
+
+def test_console_errors_except_invalid_regex(env_context: SimpleNamespace) -> None:
+    with pytest.raises(ValueError, match="pattern"):
+        assertions.step_no_console_errors_except(env_context, "(")
+
+
+def test_file_downloaded_none_list(env_context: SimpleNamespace) -> None:
+    env_context.bp_downloads = None
+    with pytest.raises(AssertionError, match="no downloaded file"):
+        assertions.step_file_downloaded(env_context, "x.txt")
+
+
+def test_no_console_errors_none_list(env_context: SimpleNamespace) -> None:
+    env_context.bp_console_errors = None
+    assertions.step_no_console_errors(env_context)
+
+
+def test_upload_expands_user_home(
+    context: SimpleNamespace, page: Page, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    f = tmp_path / "up.txt"
+    f.write_text("x")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    page.set_content('<input type="file">')
+    interaction.step_upload(context, "input", "~/up.txt")
+    assert page.locator("input").evaluate("el => el.files.length") == 1
+
+
+def test_tracing_enable_twice_is_idempotent(env_context: SimpleNamespace, tmp_path: Path) -> None:
+    env_context.bp_config = BrowserConfig(traces_dir=str(tmp_path))
+    session.step_enable_tracing(env_context)
+    session.step_enable_tracing(env_context)  # second call must not raise
+
+
+def test_download_destination_sanitized(tmp_path: Path) -> None:
+    from behave_playwright.steps.browser import _download_destination
+
+    dest = _download_destination(tmp_path, "../../evil.txt")
+    assert dest.parent == tmp_path
+    assert dest.name == "evil.txt"
+    assert _download_destination(tmp_path, None).name == "download"
+    assert _download_destination(tmp_path, "a\\b\\c.txt").name == "c.txt"

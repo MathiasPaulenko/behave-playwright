@@ -20,15 +20,24 @@ if TYPE_CHECKING:
     from behave.runner import Context
 
 
+def _require_text(text: str, what: str) -> None:
+    """Empty text would match ``<body>`` (``get_by_text("")``) — vacuous
+    assertions are worse than a clear error."""
+    if not text:
+        raise ValueError(f"empty {what}")
+
+
 @then('I should see "{text}"')
 @then('I should see the text "{text}"')
 def step_see_text(context: Context, text: str) -> None:
+    _require_text(text, "text")
     expect(require_page(context).get_by_text(text).first).to_be_visible()
 
 
 @then('I should not see "{text}"')
 @then('I should not see the text "{text}"')
 def step_not_see_text(context: Context, text: str) -> None:
+    _require_text(text, "text")
     expect(require_page(context).get_by_text(text).first).not_to_be_visible()
 
 
@@ -73,6 +82,7 @@ def step_url_is(context: Context, url: str) -> None:
 @then('the url should contain "{fragment}"')
 @then('the page url should contain "{fragment}"')
 def step_url_contains(context: Context, fragment: str) -> None:
+    _require_text(fragment, "url fragment")
     expect(main_page(context)).to_have_url(re.compile(re.escape(fragment)))
 
 
@@ -85,6 +95,7 @@ def step_title_is(context: Context, title: str) -> None:
 @then('the title should contain "{text}"')
 @then('the page title should contain "{text}"')
 def step_title_contains(context: Context, text: str) -> None:
+    _require_text(text, "title fragment")
     expect(main_page(context)).to_have_title(re.compile(re.escape(text)))
 
 
@@ -143,7 +154,7 @@ def step_no_console_errors_except(context: Context, pattern: str) -> None:
 
 @then('the file "{name}" was downloaded')
 def step_file_downloaded(context: Context, name: str) -> None:
-    downloads = getattr(context, "bp_downloads", [])
+    downloads = getattr(context, "bp_downloads", None) or []
     if not any(path.name == name for path in downloads):
         raise AssertionError(
             f"no downloaded file named {name!r}; seen: {[p.name for p in downloads] or 'none'}"
@@ -159,8 +170,12 @@ def _cookie(context: Context, name: str) -> dict[str, Any] | None:
 
 
 def _assert_no_console_errors(context: Context, ignored: str | None = None) -> None:
-    errors: list[str] = getattr(context, "bp_console_errors", [])
+    errors: list[str] = getattr(context, "bp_console_errors", None) or []
     if ignored is not None:
-        errors = [e for e in errors if re.search(ignored, e) is None]
+        try:
+            ignored_re = re.compile(ignored)
+        except re.error as exc:
+            raise ValueError(f"invalid console-error ignore pattern {ignored!r}: {exc}") from exc
+        errors = [e for e in errors if ignored_re.search(e) is None]
     if errors:
         raise AssertionError(f"{len(errors)} console error(s): " + "; ".join(errors[:5]))

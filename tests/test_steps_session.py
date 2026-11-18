@@ -59,7 +59,7 @@ def test_logged_in_as_missing_file(
         session.step_logged_in_as(env_context, "ghost")
 
 
-@pytest.mark.parametrize("user", ["../evil", "a/b", "..", "a\\b", ""])
+@pytest.mark.parametrize("user", ["../evil", "a/b", "..", ".", "a\\b", ""])
 def test_logged_in_as_rejects_path_traversal(
     env_context: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, user: str
 ) -> None:

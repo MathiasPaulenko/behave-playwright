@@ -184,3 +184,97 @@ def test_after_scenario_with_frame_as_page_does_not_crash(
     env_context.page = env_context.page.frames[1]
     environment.after_scenario(env_context, SimpleNamespace(name="f", status=Status.failed))
     assert list(tmp_path.glob("*.png")) == []
+
+
+def test_popup_initial_request_is_captured(env_context: SimpleNamespace, base_url: str) -> None:
+    # the popup's own navigation request fires before wire_page runs —
+    # context-level capture must still see it
+    from behave_playwright.steps import network
+
+    env_context.bp_config = BrowserConfig(base_url=base_url, timeout=5000)
+    env_context.page.goto(base_url)
+    env_context.page.set_content('<a href="/next" target="_blank">Go</a>')
+    browser.step_click_in_new_tab(env_context, "Go")
+    network.step_request_made(env_context, "**/next")
+
+
+def test_popup_console_errors_are_captured(env_context: SimpleNamespace) -> None:
+    env_context.page.set_content('<a href="about:blank" target="_blank">Go</a>')
+    browser.step_click_in_new_tab(env_context, "Go")
+    env_context.page.evaluate("console.error('popup-boom')")
+    env_context.page.wait_for_timeout(100)
+    assert "popup-boom" in env_context.bp_console_errors
+
+
+def test_navigate_to_inside_iframe_uses_main_page(
+    env_context: SimpleNamespace, base_url: str
+) -> None:
+    from behave_playwright.steps import navigation
+
+    env_context.bp_config = BrowserConfig(base_url=base_url)
+    env_context.page.goto(base_url)
+    env_context.page.set_content('<iframe name="fr" srcdoc="<p>x</p>"></iframe>')
+    env_context.page.wait_for_selector("iframe")
+    browser.step_switch_to_iframe(env_context, "fr")
+    navigation.step_navigate_to(env_context, "/next")  # Frame has no .goto
+    assert env_context._bp_main_page.url == f"{base_url}/next"
+
+
+def test_iframe_exact_name_beats_url_substring(env_context: SimpleNamespace, base_url: str) -> None:
+    env_context.bp_config = BrowserConfig(base_url=base_url)
+    env_context.page.goto(base_url)
+    # first frame's URL contains "named" — but the second frame is actually
+    # named "named": an exact name match must win
+    env_context.page.set_content(
+        f'<iframe src="{base_url}/next#named"></iframe>'
+        '<iframe name="named" srcdoc="<p>the named one</p>"></iframe>'
+    )
+    env_context.page.wait_for_selector("iframe")
+    env_context.page.wait_for_timeout(200)  # let the src iframe load
+    browser.step_switch_to_iframe(env_context, "named")
+    assertions.step_see_text(env_context, "the named one")
+
+
+def test_console_listener_recreates_missing_list(env_context: SimpleNamespace) -> None:
+    env_context.bp_console_errors = None  # damaged externally between steps
+    env_context.page.evaluate("console.error('still-seen')")
+    env_context.page.wait_for_timeout(100)
+    assert "still-seen" in env_context.bp_console_errors
+
+
+def test_switch_to_iframe_recovers_stray_frame_page(env_context: SimpleNamespace) -> None:
+    # a custom step left a Frame on context.page without _bp_main_page —
+    # switching must remember the owning Page, not the Frame (Frame has no
+    # .frames and dialogs/downloads need the real Page)
+    env_context.page.set_content(
+        '<iframe name="outer" srcdoc="<p>x</p>"></iframe>'
+        '<iframe name="inner" srcdoc="<p>y</p>"></iframe>'
+    )
+    env_context.page.wait_for_selector("iframe")
+    env_context.page = env_context.page.frames[1]  # stray Frame, no _bp_main_page
+    env_context._bp_main_page = None
+
+    browser.step_switch_to_iframe(env_context, "inner")
+    browser.step_switch_to_main_frame(env_context)
+
+    from playwright.sync_api import Page
+
+    assert isinstance(env_context.page, Page)
+
+
+def test_empty_text_assertions_rejected(env_context: SimpleNamespace) -> None:
+    with pytest.raises(ValueError, match="empty text"):
+        assertions.step_see_text(env_context, "")
+    with pytest.raises(ValueError, match="empty text"):
+        assertions.step_not_see_text(env_context, "")
+    with pytest.raises(ValueError, match="empty url fragment"):
+        assertions.step_url_contains(env_context, "")
+    with pytest.raises(ValueError, match="empty title fragment"):
+        assertions.step_title_contains(env_context, "")
+
+
+def test_wait_text_empty_rejected(env_context: SimpleNamespace) -> None:
+    from behave_playwright.steps import waiting
+
+    with pytest.raises(ValueError, match="empty text"):
+        waiting.step_wait_text(env_context, "")

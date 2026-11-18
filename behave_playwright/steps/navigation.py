@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from behave import step, when
 
-from behave_playwright._context import main_page, require_page, resolve_url
+from behave_playwright._context import main_page, resolve_url
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 @step('I go to "{url}"')
 @step('I open "{url}"')
 def step_navigate_to(context: Context, url: str) -> None:
-    require_page(context).goto(resolve_url(context, url))
+    # main_page: context.page may be a Frame while inside an iframe, and
+    # Frame has no .goto
+    main_page(context).goto(resolve_url(context, url))
 
 
 @when("I go back")

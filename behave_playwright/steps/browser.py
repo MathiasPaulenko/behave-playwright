@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from behave import step
 
@@ -30,7 +30,8 @@ def step_open_new_tab(context: Context, url: str) -> None:
 @step('I click "{target}" in a new tab')
 def step_click_in_new_tab(context: Context, target: str) -> None:
     """Click something that opens a popup/tab and switch to it."""
-    with require_browser_context(context).expect_page() as new_page_info:
+    timeout = getattr(getattr(context, "bp_config", None), "timeout", 30_000)
+    with require_browser_context(context).expect_page(timeout=timeout) as new_page_info:
         resolve_first(require_page(context), target).click()
     page = new_page_info.value
     wire_page(context, page)
@@ -58,13 +59,19 @@ def step_close_tab(context: Context) -> None:
 def step_switch_to_iframe(context: Context, name: str) -> None:
     if not name.strip():
         raise ValueError("iframe name/url must not be empty")
-    top = getattr(context, "_bp_main_page", None)
-    if top is None:
-        top = require_page(context)
-        context._bp_main_page = top
-    frame = next((f for f in top.frames if f.name == name or name in f.url), None)
+    main: Any = getattr(context, "_bp_main_page", None)
+    if main is None:
+        candidate = require_page(context)
+        # context.page may already be a Frame left by custom steps — keep
+        # _bp_main_page pointing at the owning Page, never a Frame
+        main = getattr(candidate, "page", candidate)
+        context._bp_main_page = main
+    # an exact frame name wins over a looser url-substring match
+    frame = next((f for f in main.frames if f.name == name), None) or next(
+        (f for f in main.frames if name in f.url), None
+    )
     if frame is None:
-        available = [f"{f.name or '(unnamed)'}" for f in top.frames]
+        available = [f"{f.name or '(unnamed)'}" for f in main.frames]
         raise LookupError(f"no iframe matches {name!r}; frames: {available}")
     context.page = frame
 
@@ -97,14 +104,22 @@ def step_dismiss_dialog(context: Context) -> None:
 def step_click_and_download(context: Context, target: str) -> None:
     # expect_download lives on the real Page, but the clicked element may
     # live inside the current iframe — resolve it on context.page.
-    with main_page(context).expect_download() as download_info:
+    timeout = getattr(getattr(context, "bp_config", None), "timeout", 30_000)
+    with main_page(context).expect_download(timeout=timeout) as download_info:
         resolve_first(require_page(context), target).click()
     download = download_info.value
     downloads_dir = Path(getattr(getattr(context, "bp_config", None), "downloads_dir", "downloads"))
     downloads_dir.mkdir(parents=True, exist_ok=True)
-    destination = downloads_dir / (download.suggested_filename or "download")
+    destination = _download_destination(downloads_dir, download.suggested_filename)
     download.save_as(str(destination))
     downloads = getattr(context, "bp_downloads", None)
     if downloads is None:
         downloads = context.bp_downloads = []
     downloads.append(destination)
+
+
+def _download_destination(downloads_dir: Path, suggested_filename: str | None) -> Path:
+    """Safe destination for a downloaded file — server-suggested names are
+    reduced to a bare filename so they can't escape ``downloads_dir``."""
+    name = Path((suggested_filename or "download").replace("\\", "/")).name
+    return downloads_dir / (name or "download")

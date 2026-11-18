@@ -34,7 +34,7 @@ def step_emulate_device(context: Context, name: str) -> None:
 def step_use_storage_state(context: Context, path: str) -> None:
     if not path.strip():
         raise ValueError("storage state path must not be empty")
-    storage_path = Path(path)
+    storage_path = Path(path).expanduser()
     if not storage_path.is_file():
         raise FileNotFoundError(
             f"Storage state file not found: {storage_path} — "
@@ -60,7 +60,7 @@ def step_logged_in_as(context: Context, user: str) -> None:
 def step_save_storage_state(context: Context, path: str) -> None:
     if not path.strip():
         raise ValueError("storage state path must not be empty")
-    storage_path = Path(path)
+    storage_path = Path(path).expanduser()
     storage_path.parent.mkdir(parents=True, exist_ok=True)
     require_browser_context(context).storage_state(path=str(storage_path))
     logger.info("Storage state saved to %s", storage_path)
@@ -72,5 +72,7 @@ def step_enable_tracing(context: Context) -> None:
     ``<traces_dir>/<scenario>.trace.zip`` (open with `playwright show-trace`).
     """
     browser_context = require_browser_context(context)
+    if getattr(context, "_bp_tracing", None) is browser_context:
+        return  # tracing is already running on this context — idempotent
     browser_context.tracing.start(screenshots=True, snapshots=True, sources=True)
     context._bp_tracing = browser_context

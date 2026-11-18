@@ -15,12 +15,13 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Callable
 from re import Pattern
 from typing import TYPE_CHECKING, Any
 
 from behave import step, then
 
-from behave_playwright._context import main_page, require_page
+from behave_playwright._context import require_browser_context, require_page
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -38,7 +39,7 @@ def step_intercept_status(context: Context, pattern: str, code: int) -> None:
 
 @step('I intercept "{pattern}" and abort')
 def step_intercept_abort(context: Context, pattern: str) -> None:
-    main_page(context).route(_url_pattern(pattern), lambda route: route.abort())
+    require_browser_context(context).route(_url_pattern(pattern), lambda route: route.abort())
 
 
 @then('a request was made to "{pattern}"')
@@ -53,7 +54,7 @@ def step_request_made_method(context: Context, method: str, pattern: str) -> Non
 
 def _fulfill_route(context: Context, pattern: str, status: int = 200, body: str = "") -> None:
     content_type = "application/json" if _is_json(body) else "text/plain"
-    main_page(context).route(
+    require_browser_context(context).route(
         _url_pattern(pattern),
         lambda route: route.fulfill(status=status, body=body, content_type=content_type),
     )
@@ -61,9 +62,14 @@ def _fulfill_route(context: Context, pattern: str, status: int = 200, body: str 
 
 def _url_pattern(raw: str) -> str | Pattern[str]:
     raw = raw.strip()
+    if not raw:
+        raise ValueError("empty intercept pattern")
     body = _slash_regex_body(raw)
     if body is not None:
-        return re.compile(body)
+        try:
+            return re.compile(body)
+        except re.error as exc:
+            raise ValueError(f"invalid intercept pattern {raw!r}: {exc}") from exc
     if raw.startswith("/"):
         return f"**{raw}"
     return raw
@@ -92,16 +98,16 @@ def _is_json(body: str) -> bool:
 
 def _wait_for_request(context: Context, pattern: str, method: str | None = None) -> Any:
     require_page(context)
+    matcher = _request_matcher(pattern)  # validates/compiles once, before polling
     timeout = getattr(getattr(context, "bp_config", None), "timeout", 30_000) / 1000
-    deadline = time.monotonic() + timeout
-    requests = getattr(context, "bp_requests", [])
+    # Playwright semantic: timeout <= 0 means "no deadline" — poll until found.
+    deadline = None if timeout <= 0 else time.monotonic() + timeout
     while True:
+        requests = getattr(context, "bp_requests", None) or []
         for request in requests:
-            if _matches(request.url, pattern) and (
-                method is None or request.method.upper() == method
-            ):
+            if matcher(request.url) and (method is None or request.method.upper() == method):
                 return request
-        if time.monotonic() >= deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             raise AssertionError(
                 f"no {method or 'ANY'} request matched {pattern!r}; "
                 f"seen: {[r.url for r in requests] or 'none'}"
@@ -109,11 +115,22 @@ def _wait_for_request(context: Context, pattern: str, method: str | None = None)
         time.sleep(0.05)
 
 
-def _matches(url: str, pattern: str) -> bool:
+def _request_matcher(pattern: str) -> Callable[[str], bool]:
+    """Compile ``pattern`` (regex/glob/substring) into a url matcher — once."""
+    if not pattern.strip():
+        raise ValueError("empty request pattern")
     body = _slash_regex_body(pattern)
     if body is not None:
-        return re.search(body, url) is not None
-    if "*" in pattern:
-        regex = re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
-        return re.search(regex, url) is not None
-    return pattern in url
+        try:
+            regex = re.compile(body)
+        except re.error as exc:
+            raise ValueError(f"invalid request pattern {pattern!r}: {exc}") from exc
+    elif "*" in pattern:
+        regex = re.compile(re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*"))
+    else:
+        return lambda url: pattern in url
+    return lambda url: regex.search(url) is not None
+
+
+def _matches(url: str, pattern: str) -> bool:
+    return _request_matcher(pattern)(url)

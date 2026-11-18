@@ -7,12 +7,13 @@ expression of the expected behavior.
 
 from __future__ import annotations
 
+import math
 import time
 from typing import TYPE_CHECKING
 
 from behave import when
 
-from behave_playwright._context import require_page
+from behave_playwright._context import main_page, require_page
 from behave_playwright.locators import resolve_first
 
 if TYPE_CHECKING:
@@ -34,22 +35,32 @@ def step_wait_hidden(context: Context, target: str) -> None:
 @when('I wait for text "{text}"')
 @when('I wait for the text "{text}"')
 def step_wait_text(context: Context, text: str) -> None:
+    if not text:
+        raise ValueError("empty text")
     require_page(context).get_by_text(text).first.wait_for(state="visible")
 
 
 @when("I wait for the page to load")
 @when("I wait for navigation")
 def step_wait_load(context: Context) -> None:
-    require_page(context).wait_for_load_state("load")
+    # main_page: inside an iframe context.page is a Frame — "the page" is
+    # the real Page, same semantics as the navigation steps
+    main_page(context).wait_for_load_state("load")
 
 
 @when("I wait for the network to be idle")
 @when("I wait for network to be idle")
 def step_wait_network_idle(context: Context) -> None:
-    require_page(context).wait_for_load_state("networkidle")
+    main_page(context).wait_for_load_state("networkidle")
 
 
 @when("I wait {seconds} seconds")
 def step_wait_seconds(context: Context, seconds: str) -> None:
     require_page(context)  # wiring check — Frame has no wait_for_timeout
-    time.sleep(float(seconds))
+    try:
+        delay = float(seconds)
+    except ValueError:
+        raise ValueError(f"invalid wait duration {seconds!r}") from None
+    if not math.isfinite(delay) or delay < 0:
+        raise ValueError(f"invalid wait duration {seconds!r} (must be a finite number >= 0)")
+    time.sleep(delay)
