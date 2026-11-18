@@ -59,7 +59,7 @@ That's it — one browser per run, fresh context + page per scenario, screenshot
 | `context.browser_context` | Playwright `BrowserContext` |
 | `context.browser` | Shared Playwright `Browser` (one per run) |
 | `context.bp_config` | Resolved `BrowserConfig` |
-| `context.bp_requests` | All requests seen by the scenario's page(s) |
+| `context.bp_requests` | All requests seen by the scenario's browser context (incl. popups) |
 | `context.bp_console_errors` | `console.error` + uncaught page errors |
 | `context.bp_downloads` | Files downloaded via download steps |
 | `context.bp_screenshot` / `bp_trace` / `bp_video` | Artifact paths on failure |
@@ -255,7 +255,7 @@ def step_cart_badge(context, count):
     expect(context.page.locator(".cart-badge")).to_have_text(str(count))
 ```
 
-If a step creates a page itself (custom popup handling, extra tabs), call `wire_page(context, page)` from `behave_playwright.environment` so it inherits timeouts and request/console captures.
+If a step creates a page itself (custom popup handling, extra tabs), call `wire_page(context, page)` from `behave_playwright.environment` so it inherits timeouts and console-error capture. Requests are recorded at browser-context level, so every page is covered automatically — including popups.
 
 Or compose bundled steps with `execute_steps`:
 
