@@ -10,7 +10,10 @@ from playwright.sync_api import Page
 if TYPE_CHECKING:
     from behave.runner import Context
 
-_ABSOLUTE_URL_RE = re.compile(r"^(?:[a-zA-Z][a-zA-Z0-9+.-]*://|data:|about:|blob:)", re.IGNORECASE)
+# Any URI scheme with >= 2 chars (http:, file:, mailto:, tel:, ws:, data:,
+# about:, blob:, ...) counts as absolute. A single letter before ':' is left
+# relative so Windows drive paths (C:\...) keep resolving as paths, not URIs.
+_ABSOLUTE_URL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]{1,}:", re.IGNORECASE)
 
 
 def require_page(context: Context) -> Page:
@@ -43,6 +46,7 @@ def require_browser_context(context: Context) -> Any:
 
 def resolve_url(context: Context, url: str) -> str:
     """Resolve ``url`` against ``base_url`` when relative."""
+    url = url.strip()
     if _ABSOLUTE_URL_RE.match(url):
         return url
     config = getattr(context, "bp_config", None)

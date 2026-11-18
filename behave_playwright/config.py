@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -24,6 +25,9 @@ ENV_PREFIX = "BEHAVE_PW_"
 USERDATA_PREFIX = "behave_playwright."
 
 VALID_BROWSERS = ("chromium", "firefox", "webkit")
+
+# scheme://something — rejects empty hosts and whitespace inside the URL
+_BASE_URL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*://\S+$")
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 _FALSE_VALUES = {"0", "false", "no", "off"}
@@ -72,10 +76,17 @@ class BrowserConfig:
                 return str(userdata[prefixed])
             return env.get(ENV_PREFIX + key.upper(), default)
 
-        browser = (get("browser", "chromium") or "chromium").lower()
+        browser = (get("browser", "chromium") or "chromium").strip().lower()
         if browser not in VALID_BROWSERS:
             raise ValueError(
                 f"Invalid browser {browser!r}; expected one of: {', '.join(VALID_BROWSERS)}"
+            )
+
+        base_url = _parse_optional_str(get("base_url"))
+        if base_url and not _BASE_URL_RE.match(base_url):
+            raise ValueError(
+                f"Invalid base_url {base_url!r}; expected an absolute URL "
+                "(e.g. 'https://app.example.com' or 'http://localhost:8000')"
             )
 
         viewport = _parse_viewport(get("viewport"))
@@ -90,7 +101,7 @@ class BrowserConfig:
             browser=browser,
             headless=_parse_bool("headless", get("headless", "true") or "true"),
             channel=_parse_optional_str(get("channel")),
-            base_url=_parse_optional_str(get("base_url")),
+            base_url=base_url,
             viewport_width=viewport[0] if viewport else None,
             viewport_height=viewport[1] if viewport else None,
             device=_parse_optional_str(get("device")),

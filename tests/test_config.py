@@ -123,3 +123,24 @@ def test_non_finite_timeout_rejected(value: str) -> None:
 def test_non_finite_slow_mo_rejected(value: str) -> None:
     with pytest.raises(ValueError, match="slow_mo"):
         BrowserConfig.from_sources({"slow_mo": value}, {})
+
+
+def test_browser_whitespace_tolerated() -> None:
+    config = BrowserConfig.from_sources({"browser": "  Firefox  "}, {})
+    assert config.browser == "firefox"
+
+
+def test_base_url_without_scheme_rejected() -> None:
+    with pytest.raises(ValueError, match="base_url"):
+        BrowserConfig.from_sources({"base_url": "localhost:8000"}, {})
+
+
+@pytest.mark.parametrize("bad", ["http://", "http://exa mple.com", "noscheme"])
+def test_base_url_malformed_rejected(bad: str) -> None:
+    with pytest.raises(ValueError, match="base_url"):
+        BrowserConfig.from_sources({"base_url": bad}, {})
+
+
+def test_base_url_absolute_accepted() -> None:
+    config = BrowserConfig.from_sources({"base_url": "http://localhost:8000/"}, {})
+    assert config.base_url == "http://localhost:8000/"
