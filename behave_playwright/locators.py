@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, cast
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Locator, Page
 
 TargetKind = Literal["action", "field", "any"]
@@ -63,6 +64,8 @@ def resolve(page: Page, target: str, kind: TargetKind = "action") -> Locator:
     target = target.strip()
     if not target:
         raise ValueError("empty element target — pass a label, role, text or selector")
+    if kind not in ("action", "field", "any"):
+        raise ValueError(f"invalid target kind {kind!r} (use 'action', 'field' or 'any')")
     explicit = _explicit(page, target)
     if explicit is not None:
         return explicit
@@ -84,6 +87,10 @@ def _explicit(page: Page, target: str) -> Locator | None:
     prefix_match = _PREFIX_RE.match(target)
     if prefix_match:
         prefix, value = prefix_match.group(1), target[prefix_match.end() :]
+        if not value:
+            # an empty value either parses as broken CSS or matches
+            # everything (get_by_text("") hits <body>) — fail fast instead
+            raise ValueError(f"empty value for {prefix}= in target {target!r}")
         if prefix in ("css", "xpath"):
             return page.locator(target)
         if prefix == "text":
@@ -105,6 +112,20 @@ def _explicit(page: Page, target: str) -> Locator | None:
     return None
 
 
+def _raw_css(page: Page, target: str) -> Locator:
+    """Raw-CSS branch of the cascade.
+
+    ``page.locator`` validates lazily, and an invalid selector poisons the
+    whole ``or_`` compound at use time — so a target like "Don't" would break
+    every valid branch. Probe the parse and degrade to a dead branch.
+    """
+    try:
+        page.locator(target).count()
+    except PlaywrightError:
+        return page.locator("css=bp-dead-branch")
+    return page.locator(target)
+
+
 def _action_cascade(page: Page, target: str) -> Locator:
     locator = page.get_by_role(cast(Any, _ACTION_ROLES[0]), name=target)
     for role in _ACTION_ROLES[1:]:
@@ -112,7 +133,7 @@ def _action_cascade(page: Page, target: str) -> Locator:
     return (
         locator.or_(page.get_by_text(target))
         .or_(page.get_by_test_id(target))
-        .or_(page.locator(target))
+        .or_(_raw_css(page, target))
     )
 
 
@@ -120,8 +141,8 @@ def _field_cascade(page: Page, target: str) -> Locator:
     locator = page.get_by_label(target).or_(page.get_by_placeholder(target))
     for role in _FIELD_ROLES:
         locator = locator.or_(page.get_by_role(cast(Any, role), name=target))
-    return locator.or_(page.get_by_test_id(target)).or_(page.locator(target))
+    return locator.or_(page.get_by_test_id(target)).or_(_raw_css(page, target))
 
 
 def _any_cascade(page: Page, target: str) -> Locator:
-    return page.get_by_test_id(target).or_(page.get_by_text(target)).or_(page.locator(target))
+    return page.get_by_test_id(target).or_(page.get_by_text(target)).or_(_raw_css(page, target))

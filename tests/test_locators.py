@@ -16,6 +16,9 @@ class FakeLocator:
     def or_(self, other: FakeLocator) -> FakeLocator:
         return FakeLocator("", self.trail + other.trail)
 
+    def count(self) -> int:
+        return 0
+
     @property
     def first(self) -> FakeLocator:
         return self
@@ -109,3 +112,28 @@ def test_any_cascade() -> None:
     assert "text" in trail
     assert "locator:#main" in trail
     assert not any(t.startswith("role:") for t in trail)
+
+
+def test_resolve_rejects_unknown_kind() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="kind"):
+        resolve(FakePage(), "x", "bogus")
+
+
+def test_target_with_css_breaking_chars_still_resolves(page: Any) -> None:
+    # "Don't" is invalid as a raw CSS selector — it must not poison the
+    # semantic branches of the cascade
+    from behave_playwright.locators import resolve_first
+
+    page.set_content("<button>Don't click</button>")
+    assert resolve_first(page, "Don't click").count() == 1
+
+
+def test_empty_prefix_value_rejected() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="empty value"):
+        resolve(FakePage(), "css=")
+    with pytest.raises(ValueError, match="empty value"):
+        resolve(FakePage(), "text=")
