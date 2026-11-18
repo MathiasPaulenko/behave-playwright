@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-18
+
+### Fixed
+
+- Requests are captured at browser-context level, so requests fired by new
+  tabs and popups (including their initial navigation) are recorded in
+  `context.bp_requests`; console/pageerror capture attaches to popup pages.
+- `I intercept ... and abort/return/respond` now registers routes on the
+  browser context, so interceptions apply to every tab — not just the main page.
+- `before_all` is idempotent (re-calling releases the previous browser and
+  Playwright driver) and stops the driver if the browser launch fails.
+- `after_all` tolerates externally-closed browsers/drivers and is idempotent.
+- `new_browser_context` requires `before_all` wiring (actionable error instead
+  of `AttributeError`), tolerates already-closed contexts, clears stale page
+  state, and closes the new context if page creation fails.
+- `after_scenario` tolerates already-closed contexts and artifact-dir
+  filesystem errors, and `_handle_video` tolerates missing video files.
+- `timeout = 0` is now honored as "no timeout" everywhere (context, page,
+  `expect_page`, `expect_download`, request waits) instead of falling back
+  to the default.
+- Artifact filenames are capped at 80 chars of slug so long scenario names
+  can't exceed filesystem path limits.
+- `I navigate to` works while inside an iframe (Frame has no `.goto`).
+- Absolute URLs are detected for any `scheme:` (mailto:, tel:, file:, ...),
+  and `base_url` without a scheme is rejected at config time.
+- `browser` config values tolerate surrounding whitespace.
+- `resolve(..., kind)` validates its kind; empty `prefix=` values are
+  rejected (an empty `text=` matched `<body>`); targets that aren't valid
+  CSS no longer poison the whole resolution cascade.
+- `I intercept` / `a request was made to` reject empty patterns and invalid
+  regexes with clear errors; request matching compiles the pattern once.
+- `I switch to the "x" iframe` prefers an exact frame-name match over a
+  url-substring match, and recovers correctly when `context.page` is a
+  stray Frame.
+- `I wait N seconds` rejects invalid, negative and non-finite durations.
+- `there should be no console errors except "re"` validates the regex.
+- `I enable tracing` is idempotent on the same browser context.
+- `I upload`, `I use the storage state` and `I save the storage state`
+  expand `~` to the user home.
+- Download destinations are sanitized to a bare filename so a hostile
+  `suggested_filename` can't escape `downloads_dir`.
+- Empty text/fragment assertions (`I should see ""`, url/title contains)
+  are rejected instead of asserting vacuously.
+- `init` returns a clean error when a scaffold path is blocked by a file.
+- `behave-playwright` no longer records duplicate entries when switching
+  between already-wired tabs.
+- `I wait for the page to load` / `I wait for the network to be idle` wait
+  on the real page while inside an iframe, matching the navigation steps.
+- `after_scenario` clears `context.page`, `context.browser_context` and
+  `context._bp_main_page` after teardown, so custom hooks see `None`
+  instead of closed objects.
+- Videos are still captured when the page was closed mid-scenario, and
+  a locked leftover video can't abort `new_browser_context`.
+- `new_browser_context` tolerates artifact attributes inherited from an
+  outer behave context layer (their `delattr` raises `AttributeError`).
+- The package ships `py.typed`, so downstream type checkers see the
+  inline type annotations.
+
 ## [1.0.0] - 2026-10-14
 
 ### Added

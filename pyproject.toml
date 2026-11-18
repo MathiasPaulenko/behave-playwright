@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "behave-playwright"
-version = "1.0.0"
+version = "1.0.1"
 description = "BDD web testing with Behave and Playwright: reusable Gherkin step definitions and browser lifecycle hooks"
 readme = "README.md"
 license = "MIT"
