@@ -79,8 +79,12 @@ def _cmd_init(directory: Path, force: bool = False) -> int:
         if path.exists() and not force:
             skipped.append(rel_path)
             continue
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8", newline="\n")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8", newline="\n")
+        except OSError as exc:
+            print(f"error: cannot write {path}: {exc}")
+            return 1
         created.append(rel_path)
 
     for rel_path in created:

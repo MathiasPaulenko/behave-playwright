@@ -51,3 +51,11 @@ def test_init_rejects_file_as_directory(tmp_path: Path, capsys: pytest.CaptureFi
     existing.write_text("x")
     assert main(["init", "-d", str(existing)]) == 1
     assert "not a directory" in capsys.readouterr().out
+
+
+def test_init_returns_error_when_features_path_is_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "features").write_text("blocked")
+    assert main(["init", "-d", str(tmp_path)]) == 1
+    assert "error" in capsys.readouterr().out.lower()
