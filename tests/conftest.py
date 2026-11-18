@@ -86,6 +86,7 @@ def base_url() -> Iterator[str]:
     thread.start()
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
+    server.server_close()
 
 
 @pytest.fixture
@@ -116,4 +117,6 @@ def env_context(browser: Browser, playwright_instance: Playwright) -> Iterator[S
     )
     environment.new_browser_context(ctx)
     yield ctx
-    ctx.browser_context.close()
+    # after_scenario clears browser_context — only close what still exists
+    if ctx.browser_context is not None:
+        ctx.browser_context.close()

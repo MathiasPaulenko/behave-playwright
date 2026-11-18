@@ -70,3 +70,4 @@ def after_all(context):
     bp.after_all(context)
     if _server is not None:
         _server.shutdown()
+        _server.server_close()
